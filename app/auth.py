@@ -82,7 +82,7 @@ async def sign_up(user: RegisterSchema, db: Session = Depends(get_db)):
     #TODO: Надо сделать валидацию
     db_user = get_user(db, email=user.email)
     if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(status_code=400, detail="User already registered")
     
     hashed_password = get_password_hash(user.password)
     db_user = _User(username=user.username, email=user.email, hashed_password=hashed_password)
@@ -95,20 +95,23 @@ async def sign_up(user: RegisterSchema, db: Session = Depends(get_db)):
 
 
 @auth.post("/login")
-async def login(request_data: LoginSchema):
+async def login(request_data: LoginSchema, db: Session = Depends(get_db)):
+    db_user = get_user(db, email=request_data.email)
+    if not db_user:
+        raise HTTPException(status_code=400, detail="Bad password or email")
+    
+    if not verify_password(request_data.password, db_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Bad password or email")
+    
     token = await auth_backend.create_token(
         {
-            "username": request_data.username,
-            "password": request_data.password,
+            "id": db_user.id,
+            "username": db_user.email,
+            "password": db_user.username,
         }
     )
     return {"token": token}
 
-
-@auth.get("/profile-info")
-async def get_profile_info(request: Request):
-    user: User = request.state.user
-    return {"username": user.username}
 
 
 @auth.post("/logout")
