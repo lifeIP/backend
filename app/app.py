@@ -5,6 +5,7 @@ from fastapi_auth_jwt import JWTAuthenticationMiddleware
 from app.auth import auth, auth_backend
 
 
+
 app = FastAPI()
 
 
