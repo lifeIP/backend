@@ -1,0 +1,7 @@
+fastapi[all]
+fastapi-users[sqlalchemy]
+uvicorn[standard]
+aiosqlite
+fastapi_auth_jwt
+fastapi-sqlalchemy
+sqlalchemy
