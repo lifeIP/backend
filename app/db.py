@@ -30,9 +30,15 @@ class User(Base):
     __tablename__ = "users"
  
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(225))
+    
+    first_name = Column(String(225), nullable=False) # Имя
+    last_name = Column(String(225), nullable=False) # Фамилия
+    patronymic = Column(String(225), nullable=True) # Отчество
+
     email = Column(String(225), nullable=False, unique=True)
     hashed_password = Column(String, nullable=False)
+    is_admin = Column(Boolean, nullable=False)
+
 
 
 Base.metadata.create_all(bind=engine)

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 from app.db import engine, SessionLocal, Base, get_db, User as _User
-
+from functools import wraps
 
 
 
@@ -39,12 +39,13 @@ def authenticate_user(db: Session, email: str, password: str):
 
 
 
+class AuthBase(BaseModel):
+    token: Optional[str] = Field(None)
 
-class User(BaseModel):
+class User(AuthBase):
     email: str
     username: str
     password: str
-    token: Optional[str] = Field(None)
 
 
 class AuthenticationSettings(BaseModel):
@@ -56,8 +57,11 @@ class AuthenticationSettings(BaseModel):
 
 class RegisterSchema(BaseModel):
     email:str
-    username: str
     password: str
+    first_name: str
+    last_name: str
+    patronymic: str
+    
 
 
 class LoginSchema(BaseModel):
@@ -76,6 +80,9 @@ auth_backend = JWTAuthBackend(
 )
 
 
+
+
+
 # Create Routes
 @auth.post("/sign-up")
 async def sign_up(user: RegisterSchema, db: Session = Depends(get_db)):
@@ -85,7 +92,7 @@ async def sign_up(user: RegisterSchema, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="User already registered")
     
     hashed_password = get_password_hash(user.password)
-    db_user = _User(username=user.username, email=user.email, hashed_password=hashed_password)
+    db_user = _User(first_name=user.first_name, last_name=user.last_name, patronymic=user.patronymic, email=user.email, hashed_password=hashed_password, is_admin=False)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -96,7 +103,9 @@ async def sign_up(user: RegisterSchema, db: Session = Depends(get_db)):
 
 @auth.post("/login")
 async def login(request_data: LoginSchema, db: Session = Depends(get_db)):
+    #TODO: Надо сделать валидацию
     db_user = get_user(db, email=request_data.email)
+    
     if not db_user:
         raise HTTPException(status_code=400, detail="Bad password or email")
     
@@ -106,8 +115,9 @@ async def login(request_data: LoginSchema, db: Session = Depends(get_db)):
     token = await auth_backend.create_token(
         {
             "id": db_user.id,
-            "username": db_user.email,
-            "password": db_user.username,
+            "first_name": db_user.first_name,
+            "last_name": db_user.last_name,
+            "patronymic": db_user.patronymic
         }
     )
     return {"token": token}
@@ -115,7 +125,6 @@ async def login(request_data: LoginSchema, db: Session = Depends(get_db)):
 
 
 @auth.post("/logout")
-async def logout(request: Request):
-    user: User = request.state.user
-    await auth_backend.invalidate_token(user.token)
+async def logout(request: AuthBase):
+    await auth_backend.invalidate_token(request.token)
     return {"message": "Logged out"}
