@@ -102,7 +102,7 @@ async def login(request_data: LoginSchema, db: Session = Depends(get_db), Author
 
 
 @auth.get('/protected')
-def get_logged_in_user(Authorize:AuthJWT=Depends()):
+async def get_logged_in_user(Authorize:AuthJWT=Depends()):
     try:
         Authorize.jwt_required()
     except Exception as e:
@@ -112,3 +112,5 @@ def get_logged_in_user(Authorize:AuthJWT=Depends()):
     current_user=Authorize.get_jwt_identity()
 
     return {"current_user":current_user}
+
+
