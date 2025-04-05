@@ -94,8 +94,8 @@ async def login(request_data: LoginSchema, db: Session = Depends(get_db), Author
     if not verify_password(request_data.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Bad password or email")
     
-    access_token=Authorize.create_access_token(identity=db_user.email)
-    refresh_token=Authorize.create_refresh_token(identity=db_user.email)
+    access_token=Authorize.create_access_token(identity=db_user.id)
+    refresh_token=Authorize.create_refresh_token(identity=db_user.id)
 
     return {"access_token":access_token,"refresh_token":refresh_token}
 
