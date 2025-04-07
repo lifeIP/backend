@@ -27,42 +27,66 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class Base(DeclarativeBase): pass
  
-
-
 class User(Base):
     __tablename__ = "users"
  
     id = Column(Integer, primary_key=True, index=True)
-    
-    first_name = Column(String(255), nullable=False) # Имя
-    last_name = Column(String(255), nullable=False) # Фамилия
-    patronymic = Column(String(255), nullable=True) # Отчество
-
     email = Column(String(255), nullable=False, unique=True)
     hashed_password = Column(String(255), nullable=False)
     is_admin = Column(Boolean, nullable=False)
 
-    images = relationship("Image", back_populates="user")
-    projects = relationship("Project", back_populates="user")
+    projects = relationship("Project", back_populates="users")
+    personal_data = relationship("PersonalData", back_populates="users")
 
-
-
-class Image(Base):
-    __tablename__ = "images"
+class PersonalData(Base):
+    __tablename__ = "personal_data"
 
     id = Column(Integer, primary_key=True, index=True)
-    full_path = Column(String(255), nullable=False, unique=True)
-    user_id = Column(ForeignKey("users.id")) 
-    user = relationship("User", back_populates="images")
+    user_id = Column(ForeignKey("users.id"), unique=True)
+    first_name = Column(String(255), nullable=False) # Имя
+    last_name = Column(String(255), nullable=False) # Фамилия
+    patronymic = Column(String(255), nullable=True) # Отчество
+    photo_path = Column(String(255), nullable=True, unique=True)
 
+    users = relationship("User", back_populates="personal_data")
 
 class Project(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
-
     user_id = Column(ForeignKey("users.id"))
-    user = relationship("User", back_populates="projects")
+
+    users = relationship("User", back_populates="projects")
+    images = relationship("Image", back_populates="projects")
+
+class Image(Base):
+    __tablename__ = "images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(ForeignKey("projects.id"))
+    full_path = Column(String(255), nullable=False, unique=True)
+    
+    projects = relationship("Project", back_populates="images")
+    mask = relationship("Mask", back_populates="images")
+
+class Mask(Base):
+    __tablename__ = "mask"
+
+    id = Column(Integer, primary_key=True, index=True)
+    image_id = Column(ForeignKey("images.id"), unique=True)
+
+    images = relationship("Image", back_populates="mask")
+    contour = relationship("Contour", back_populates="mask")
+
+class Contour(Base):
+    __tablename__ = "contour"
+
+    id = Column(Integer, primary_key=True, index=True)
+    mask_id = Column(ForeignKey("mask.id"))
+
+    mask = relationship("Mask", back_populates="contour")
+
+
 
 
 Base.metadata.create_all(bind=engine)

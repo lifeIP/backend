@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from typing import Optional
 
-from app.db import get_db, User as _User
+from app.db import get_db, User as _User, PersonalData as _PersonalData
 from functools import wraps
 
 
@@ -76,11 +76,14 @@ async def sign_up(user: RegisterSchema, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="User already registered")
 
     hashed_password = get_password_hash(user.password)
-    db_user = _User(first_name=user.first_name, last_name=user.last_name, patronymic=user.patronymic, email=user.email, hashed_password=hashed_password, is_admin=False)
-    db.add(db_user)
+    
+    db_user = _User(email=user.email, hashed_password=hashed_password, is_admin=False)
+    personal_data = _PersonalData(first_name=user.first_name, last_name=user.last_name, patronymic=user.patronymic, users=db_user)
+    
+    db.add(personal_data)
     db.commit()
-    db.refresh(db_user)
-    return db_user
+    db.refresh(personal_data)
+    return personal_data
 
 
 @auth.post("/login")

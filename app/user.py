@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from fastapi_jwt_auth import AuthJWT
 from sqlalchemy.orm import Session
-from app.db import get_db, User as _User
+from app.db import get_db, User as _User, Image as _Image
 
 user_route = APIRouter()
 
@@ -18,6 +18,7 @@ async def get_user_info(Authorize:AuthJWT=Depends(), db: Session = Depends(get_d
     current_user=Authorize.get_jwt_identity()
 
     db_user = db.query(_User).filter(_User.id == current_user).first()
+    
     return {
         "first_name": db_user.first_name,
         "last_name": db_user.last_name,
