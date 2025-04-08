@@ -100,7 +100,7 @@ async def login(request_data: LoginSchema, db: Session = Depends(get_db), Author
     access_token=Authorize.create_access_token(identity=db_user.id)
     refresh_token=Authorize.create_refresh_token(identity=db_user.id)
 
-    return {"access_token":access_token,"refresh_token":refresh_token}
+    return {"access_token":access_token,"refresh_token":refresh_token, "user_id": db_user.id}
 
 
 
