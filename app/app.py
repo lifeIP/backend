@@ -5,6 +5,8 @@ from app.auth import auth
 from app.user import user_route
 from app.image import image_route
 from app.profile import profile_route
+from app.project import project_route
+
 
 app = FastAPI()
 
@@ -22,3 +24,4 @@ app.include_router(auth)
 app.include_router(user_route)
 app.include_router(image_route)
 app.include_router(profile_route)
+app.include_router(project_route)

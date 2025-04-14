@@ -58,16 +58,16 @@ def randompath(length: int):
     return random_path
 
 @profile_route.post("/upload-image-on-profile/")
-async def create_file(file: UploadFile, db: Session = Depends(get_db)):
-        # try:
-    #     Authorize.jwt_required()
-    # except Exception as e:
-    #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
+async def create_file(file: UploadFile, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
 
-    # current_user=Authorize.get_jwt_identity()
+    current_user=Authorize.get_jwt_identity() 
 
     full_path = f"/images{randompath(8)}/"
-    user_id = 1
+    user_id = current_user
 
     try:
         if not os.path.exists(os.getcwd() + full_path):
