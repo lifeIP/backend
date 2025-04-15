@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile,
 from sqlalchemy.orm import Session
 from app.db import get_db, User as _User, Image as _Image, PersonalData as _PersonalData
 from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.encoders import jsonable_encoder
+import os 
 
 project_route = APIRouter()
 
@@ -27,3 +29,12 @@ async def get_list_of_classes_in_project(id: int, db: Session = Depends(get_db))
             "class_color": "#00FF00"
         },
     ]))
+
+
+# @project_route.post("/create-project/{image_id}"):
+
+# TODO: Это заглушка
+@project_route.get("/get-image-by-id/{image_id}")
+async def get_user_info_photo(image_id: int, db: Session = Depends(get_db)):
+    db_personal_data = db.query(_PersonalData).filter(_PersonalData.user_id == 1).first()
+    return FileResponse(os.getcwd() + db_personal_data.photo_path)
