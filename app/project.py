@@ -1,4 +1,6 @@
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db import get_db, User as _User, Image as _Image, PersonalData as _PersonalData
 from fastapi.responses import JSONResponse
@@ -31,7 +33,24 @@ async def get_list_of_classes_in_project(id: int, db: Session = Depends(get_db))
     ]))
 
 
-# @project_route.post("/create-project/{image_id}"):
+class ProjectClass(BaseModel):
+    id: int
+    label: str
+    description: str
+    color: str
+
+class CreateProjectSchema(BaseModel):
+    name:str
+    description: str
+    classes: List[ProjectClass]
+    
+
+@project_route.post("/create-project/")
+async def create_project(project: CreateProjectSchema):
+    print(project)
+    return JSONResponse(content=jsonable_encoder({"status": "Ok"}))
+
+
 
 # TODO: Это заглушка
 @project_route.get("/get-image-by-id/{image_id}")

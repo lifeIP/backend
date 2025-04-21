@@ -4,11 +4,13 @@ from fastapi_jwt_auth import AuthJWT
 from sqlalchemy.orm import Session
 from app.db import get_db, User as _User, Image as _Image, PersonalData as _PersonalData
 import os
+from pydantic import ValidationError
 
 from fastapi.responses import FileResponse
 from pathlib import Path
 
 user_route = APIRouter()
+
 
 
 @user_route.get('/user_info')
