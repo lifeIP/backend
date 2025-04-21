@@ -56,9 +56,27 @@ class Project(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(ForeignKey("users.id"))
 
+    name = Column(String(255), nullable=False)
+    description = Column(String(255), nullable=True)
+
     users = relationship("User", back_populates="projects")
     images = relationship("Image", back_populates="projects")
+    classes = relationship("Classes", back_populates="projects")
 
+
+class Classes(Base):
+    __tablename__ = "classes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(ForeignKey("projects.id"))
+
+    label = Column(String(255), nullable=False)
+    description = Column(String(255), nullable=True)
+    color = Column(String(255), nullable=False)
+
+    projects = relationship("Project", back_populates="classes")
+
+    
 class Image(Base):
     __tablename__ = "images"
 

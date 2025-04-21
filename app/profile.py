@@ -95,4 +95,7 @@ async def create_file(file: UploadFile, db: Session = Depends(get_db), Authorize
 @profile_route.get("/get-image-on-profile/{user_id}")
 async def get_user_info_photo(user_id: int, db: Session = Depends(get_db)):
     db_personal_data = db.query(_PersonalData).filter(_PersonalData.user_id == user_id).first()
+    print(db_personal_data.id)
+    if db_personal_data.photo_path is None:
+        return FileResponse(os.getcwd() + "/images/noimage.jpg")
     return FileResponse(os.getcwd() + db_personal_data.photo_path)

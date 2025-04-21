@@ -2,16 +2,18 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from app.db import get_db, User as _User, Image as _Image, PersonalData as _PersonalData
+from app.db import get_db, User as _User, PersonalData as _PersonalData, Classes as _Classes, Project as _Project
 from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse
 from fastapi.encoders import jsonable_encoder
 import os 
+from fastapi_jwt_auth import AuthJWT
+
 
 project_route = APIRouter()
 
 
-
+# TODO: Это заглушка
 @project_route.get("/get_list_of_classes_in_project/{id}")
 async def get_list_of_classes_in_project(id: int, db: Session = Depends(get_db)):
     return JSONResponse(content=jsonable_encoder([
@@ -33,6 +35,8 @@ async def get_list_of_classes_in_project(id: int, db: Session = Depends(get_db))
     ]))
 
 
+
+
 class ProjectClass(BaseModel):
     id: int
     label: str
@@ -43,11 +47,26 @@ class CreateProjectSchema(BaseModel):
     name:str
     description: str
     classes: List[ProjectClass]
-    
 
+# TODO: Это заглушка
 @project_route.post("/create-project/")
-async def create_project(project: CreateProjectSchema):
-    print(project)
+async def create_project(project: CreateProjectSchema, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
+
+    current_user=Authorize.get_jwt_identity()
+    
+    db_user = db.query(_User).filter(_User.id == current_user).first()
+    db_project = _Project(name=project.name, description=project.description, users=db_user)
+    
+    for item in project.classes:
+        db_classes = _Classes(label=item.label, description=item.description, color=item.color, projects=db_project)
+        db.add(db_classes)
+        db.commit()
+        db.refresh(db_classes)
+    
     return JSONResponse(content=jsonable_encoder({"status": "Ok"}))
 
 
