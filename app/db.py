@@ -58,6 +58,7 @@ class Project(Base):
 
     name = Column(String(255), nullable=False)
     description = Column(String(255), nullable=True)
+    photo_path = Column(String(255), nullable=True, unique=True)
 
     users = relationship("User", back_populates="projects")
     images = relationship("Image", back_populates="projects")
