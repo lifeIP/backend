@@ -74,16 +74,23 @@ class CreateProjectSchema(BaseModel):
 # TODO: Это заглушка
 @project_route.post("/create-project/")
 async def create_project(project: CreateProjectSchema, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    # проверка авторизации пользователя
     try:
         Authorize.jwt_required()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-
     current_user=Authorize.get_jwt_identity()
     
+
     db_user = db.query(_User).filter(_User.id == current_user).first()
     db_project = _Project(name=project.name, description=project.description, users=db_user)
     
+    # проверка на присутствие классов
+    if len(project.classes) == 0:
+        db.add(db_project)
+        db.commit()
+        db.refresh(db_project)
+        
     for item in project.classes:
         db_classes = _Classes(label=item.label, description=item.description, color=item.color, projects=db_project)
         db.add(db_classes)
