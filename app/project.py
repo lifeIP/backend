@@ -24,25 +24,38 @@ def randompath(length: int):
 
 
 # TODO: Это заглушка
-@project_route.get("/get_list_of_classes_in_project/{id}")
-async def get_list_of_classes_in_project(id: int, db: Session = Depends(get_db)):
-    return JSONResponse(content=jsonable_encoder([
-        {
-            "id": 0,
-            "class_name": "eyes",
-            "class_color": "#FF0000"
-        },
-        {
-            "id": 1,
-            "class_name": "lip",
-            "class_color": "#0000FF"
-        },
-        {
-            "id": 2,
-            "class_name": "hair",
-            "class_color": "#00FF00"
-        },
-    ]))
+@project_route.get("/get_list_of_classes_in_project/{project_id}")
+async def get_list_of_classes_in_project(project_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    
+    # проверка авторизации пользователя
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
+    current_user=Authorize.get_jwt_identity()
+
+    # проверка принадлежит ли проект пользователю
+    db_project = db.query(_Project).filter(_Project.id == project_id).first()
+    if db_project is None or db_project.user_id != current_user: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+    
+    # получение классов проекта
+    class_list = []
+    db_classes = db.query(_Classes).filter(_Classes.project_id == project_id).all()
+    index = 0
+    for item in db_classes:
+        class_list.append(
+            {
+                "id": index,
+                "class_name": f"{item.label}",
+                "class_color": f"{item.color}",
+                "class_description": f"{item.description}",
+            }
+        )
+        index+=1
+
+
+    return JSONResponse(content=jsonable_encoder(class_list))
 
 
 
@@ -124,4 +137,6 @@ async def change_project_preview_image(project_id:int, file: UploadFile, db: Ses
 @project_route.get("/get-image-by-id/{image_id}")
 async def get_user_info_photo(image_id: int, db: Session = Depends(get_db)):
     db_personal_data = db.query(_PersonalData).filter(_PersonalData.user_id == 1).first()
+    if db_personal_data.photo_path is None:
+        return FileResponse(os.getcwd() + "/images/noimage.jpg")
     return FileResponse(os.getcwd() + db_personal_data.photo_path)
