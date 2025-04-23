@@ -46,7 +46,7 @@ class PersonalData(Base):
     first_name = Column(String(255), nullable=False) # Имя
     last_name = Column(String(255), nullable=False) # Фамилия
     patronymic = Column(String(255), nullable=True) # Отчество
-    photo_path = Column(String(255), nullable=True, unique=True)
+    photo_data = Column(LargeBinary, nullable=True)
 
     users = relationship("User", back_populates="personal_data")
 
@@ -58,7 +58,7 @@ class Project(Base):
 
     name = Column(String(255), nullable=False)
     description = Column(String(255), nullable=True)
-    photo_path = Column(String(255), nullable=True, unique=True)
+    photo_data = Column(LargeBinary, nullable=True)
 
     users = relationship("User", back_populates="projects")
     images = relationship("Image", back_populates="projects")
@@ -83,29 +83,20 @@ class Image(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(ForeignKey("projects.id"))
-    full_path = Column(String(255), nullable=False, unique=True)
+    image_data = Column(LargeBinary, nullable=True)
     
     projects = relationship("Project", back_populates="images")
     mask = relationship("Mask", back_populates="images")
+
 
 class Mask(Base):
     __tablename__ = "mask"
 
     id = Column(Integer, primary_key=True, index=True)
     image_id = Column(ForeignKey("images.id"), unique=True)
+    mask_data = Column(LargeBinary, nullable=True)
 
     images = relationship("Image", back_populates="mask")
-    contour = relationship("Contour", back_populates="mask")
-
-class Contour(Base):
-    __tablename__ = "contour"
-
-    id = Column(Integer, primary_key=True, index=True)
-    mask_id = Column(ForeignKey("mask.id"))
-
-    mask = relationship("Mask", back_populates="contour")
-
-
 
 
 Base.metadata.create_all(bind=engine)

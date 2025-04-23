@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db import get_db, User as _User, PersonalData as _PersonalData, Classes as _Classes, Project as _Project
 from fastapi.responses import JSONResponse
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.encoders import jsonable_encoder
 import os 
 from fastapi_jwt_auth import AuthJWT
@@ -114,23 +114,7 @@ async def change_project_preview_image(project_id:int, file: UploadFile, db: Ses
     if db_project.user_id != current_user: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
     
-
-
-    full_path = f"/images{randompath(8)}/"
-    try:
-        if not os.path.exists(os.getcwd() + full_path):
-            os.makedirs(os.getcwd() + full_path)
-
-    except Exception as e:
-        print(e)
-    
-    current_dateTime = datetime.now()
-    full_path = full_path + f"{current_dateTime.year}_{current_dateTime.month}_{current_dateTime.day}_{current_dateTime.hour}_{current_dateTime.minute}_{current_dateTime.second}." + file.filename.split(".")[-1]
-    with open(os.getcwd() + full_path,'wb+') as f:
-        f.write(file.file.read())
-        f.close()
-    
-    db_project.photo_path = full_path
+    db_project.photo_data = file.file.read()
 
     db.add(db_project)
     db.commit()
@@ -144,6 +128,6 @@ async def change_project_preview_image(project_id:int, file: UploadFile, db: Ses
 @project_route.get("/get-image-by-id/{image_id}")
 async def get_user_info_photo(image_id: int, db: Session = Depends(get_db)):
     db_personal_data = db.query(_PersonalData).filter(_PersonalData.user_id == 1).first()
-    if db_personal_data.photo_path is None:
+    if db_personal_data.id is None:
         return FileResponse(os.getcwd() + "/images/noimage.jpg")
-    return FileResponse(os.getcwd() + db_personal_data.photo_path)
+    return Response(content=db_personal_data.photo_data, media_type="image/png")

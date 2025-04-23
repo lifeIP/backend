@@ -4,49 +4,16 @@ from pydantic import BaseModel
 from fastapi_jwt_auth import AuthJWT
 from sqlalchemy.orm import Session
 from app.db import get_db, User as _User, Image as _Image, PersonalData as _PersonalData
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from datetime import datetime
 import os
 import base64
 import random, string
+from io import BytesIO
 
 
 profile_route = APIRouter()
 
-# @profile_route.post('/upload-image-on-profile/', status_code=200)
-# async def upload_image_on_profile(image: UploadFile = File(...), db: Session = Depends(get_db)):
-    # # try:
-    # #     Authorize.jwt_required()
-    # # except Exception as e:
-    # #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-
-    # # current_user=Authorize.get_jwt_identity()
-
-    # current_dateTime = datetime.now()
-    # full_path = f"/images/{current_dateTime.year}/{current_dateTime.month}/{current_dateTime.day}/{current_dateTime.hour}/{current_dateTime.minute}/{current_dateTime.second}/"
-    
-    # user_id = 1
-
-    # try:
-    #     if not os.path.exists(os.getcwd() + full_path):
-    #         os.makedirs(os.getcwd() + full_path)
-
-    # except Exception as e:
-    #     print(e)
-    
-    # full_path = full_path + f"{current_dateTime.microsecond}." + image.filename.split(".")[-1]
-    # with open(os.getcwd() + full_path,'wb+') as f:
-    #     f.write(image.file.read())
-    #     f.close()
-    
-    # db_user = db.query(_PersonalData).filter(_PersonalData.user_id == user_id).first()
-    # db_user.photo_path = full_path
-
-    # db.add(db_user)
-    # db.commit()
-    # db.refresh(db_user)
-
-    # return
 
 
 def randompath(length: int):
@@ -57,6 +24,7 @@ def randompath(length: int):
        random_path += random.choice(letters)
     return random_path
 
+
 @profile_route.post("/upload-image-on-profile/")
 async def create_file(file: UploadFile, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     try:
@@ -66,24 +34,9 @@ async def create_file(file: UploadFile, db: Session = Depends(get_db), Authorize
 
     current_user=Authorize.get_jwt_identity() 
 
-    full_path = f"/images{randompath(8)}/"
-    user_id = current_user
-
-    try:
-        if not os.path.exists(os.getcwd() + full_path):
-            os.makedirs(os.getcwd() + full_path)
-
-    except Exception as e:
-        print(e)
     
-    current_dateTime = datetime.now()
-    full_path = full_path + f"{current_dateTime.year}_{current_dateTime.month}_{current_dateTime.day}_{current_dateTime.hour}_{current_dateTime.minute}_{current_dateTime.second}." + file.filename.split(".")[-1]
-    with open(os.getcwd() + full_path,'wb+') as f:
-        f.write(file.file.read())
-        f.close()
-    
-    db_user = db.query(_PersonalData).filter(_PersonalData.user_id == user_id).first()
-    db_user.photo_path = full_path
+    db_user = db.query(_PersonalData).filter(_PersonalData.user_id == current_user).first()
+    db_user.photo_data = file.file.read()
 
     db.add(db_user)
     db.commit()
@@ -95,7 +48,6 @@ async def create_file(file: UploadFile, db: Session = Depends(get_db), Authorize
 @profile_route.get("/get-image-on-profile/{user_id}")
 async def get_user_info_photo(user_id: int, db: Session = Depends(get_db)):
     db_personal_data = db.query(_PersonalData).filter(_PersonalData.user_id == user_id).first()
-    print(db_personal_data.id)
-    if db_personal_data.photo_path is None:
+    if db_personal_data.id is None:
         return FileResponse(os.getcwd() + "/images/noimage.jpg")
-    return FileResponse(os.getcwd() + db_personal_data.photo_path)
+    return Response(content=db_personal_data.photo_data, media_type="image/png")
