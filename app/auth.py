@@ -10,7 +10,7 @@ from functools import wraps
 from fastapi_jwt_auth import AuthJWT
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
-
+import datetime
 
 
 # Хэширование пароля+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -61,6 +61,7 @@ class LoginSchema(BaseModel):
 auth = APIRouter()
 
 class Settings(BaseModel):
+    authjwt_access_token_expires:int=datetime.timedelta(hours=12)
     authjwt_secret_key:str='e8ae5c5d5cd7f0f1bec2303ad04a7c80f09f759d480a7a5faff5a6bbaa4078d0'
 
 @AuthJWT.load_env

@@ -101,6 +101,25 @@ async def create_project(project: CreateProjectSchema, db: Session = Depends(get
     return JSONResponse(content=jsonable_encoder({"status": "Ok", "id":f"{db_project.id}" }))
 
 
+# TODO: Это заглушка
+@project_route.get("/get-projects-id/")
+async def create_project(db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    # проверка авторизации пользователя
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
+    current_user=Authorize.get_jwt_identity()
+
+    db_projects = db.query(_Project).filter(_Project.user_id == current_user).all()
+    
+    project_ids = []
+    for item in db_projects:
+        project_ids.append(item.id)
+    
+    return JSONResponse(content=jsonable_encoder({ "ids":project_ids }))
+
+
 @project_route.post("/change_project-preview-image/{project_id}")
 async def change_project_preview_image(project_id:int, file: UploadFile, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     try:
