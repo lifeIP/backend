@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from app.db import get_db, User as _User, PersonalData as _PersonalData, Classes as _Classes, Project as _Project
+from app.db import get_db, User as _User, PersonalData as _PersonalData, Classes as _Classes, Project as _Project, Image as _Image
 from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse, Response
 from fastapi.encoders import jsonable_encoder
@@ -134,7 +134,7 @@ async def change_project_preview_image(project_id:int, file: UploadFile, db: Ses
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
     
     db_project.photo_data = file.file.read()
-
+    
     db.add(db_project)
     db.commit()
     db.refresh(db_project)
@@ -142,6 +142,26 @@ async def change_project_preview_image(project_id:int, file: UploadFile, db: Ses
     return {"file_size": file.size}
 
 
+@project_route.post("/upload_image_in_project/{project_id}")
+async def upload_image_in_project(project_id:int, file: UploadFile, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
+    current_user=Authorize.get_jwt_identity() 
+    db_project = db.query(_Project).filter(_Project.id == project_id).first()
+    if db_project.user_id != current_user: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+    
+    db_image = _Image(project_id=db_project.id, image_data=file.file.read())
+    
+    db.add(db_image)
+    db.commit()
+    db.refresh(db_image)
+
+    return {"file_size": file.size}
+
+    
 
 # TODO: Это заглушка
 @project_route.get("/get-image-by-id/{image_id}")
