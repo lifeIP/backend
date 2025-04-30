@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from app.db import get_db, User as _User, PersonalData as _PersonalData, Classes as _Classes, Project as _Project, Image as _Image
+from app.db import get_db, User as _User, PersonalData as _PersonalData, Mask as _Mask, Classes as _Classes, Project as _Project, Image as _Image
 from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse, Response
 from fastapi.encoders import jsonable_encoder
@@ -10,6 +10,8 @@ import os
 from fastapi_jwt_auth import AuthJWT
 import random, string
 from datetime import datetime
+import json
+
 
 project_route = APIRouter()
 
@@ -42,18 +44,17 @@ async def get_list_of_classes_in_project(project_id: int, db: Session = Depends(
     # получение классов проекта
     class_list = []
     db_classes = db.query(_Classes).filter(_Classes.project_id == project_id).all()
-    index = 0
+    
     for item in db_classes:
         class_list.append(
             {
-                "id": index,
+                "id": item.id,
                 "class_name": f"{item.label}",
                 "class_color": f"{item.color}",
                 "class_description": f"{item.description}",
             }
         )
-        index+=1
-
+    
 
     return JSONResponse(content=jsonable_encoder(class_list))
 
@@ -142,6 +143,7 @@ async def change_project_preview_image(project_id:int, file: UploadFile, db: Ses
     return {"file_size": file.size}
 
 
+
 @project_route.post("/upload_image_in_project/{project_id}")
 async def upload_image_in_project(project_id:int, file: UploadFile, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     try:
@@ -161,12 +163,89 @@ async def upload_image_in_project(project_id:int, file: UploadFile, db: Session 
 
     return {"file_size": file.size}
 
+
+
+@project_route.get("/get_projects_images_list/{project_id}")
+async def get_projects_images_list(project_id:int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
+    current_user=Authorize.get_jwt_identity() 
+    db_project = db.query(_Project).filter(_Project.id == project_id).first()
+    if db_project.user_id != current_user: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
     
+    
+    db_images = db.query(_Image).filter(_Image.project_id == project_id).all()
+    image_list = []
+    for item in db_images:
+        image_list.append(item.id)
+
+    return JSONResponse(content=jsonable_encoder({ "ids": image_list }))
+
+
+
+class PointClass(BaseModel):
+    id: int
+    x: float
+    y: float
+
+class FormClass(BaseModel):
+    class_id: int
+    points: List[PointClass]
+
+class MaskClass(BaseModel):
+    forms: List[FormClass]
+
+
+@project_route.post("/set_mask_on_image/{image_id}")
+async def set_mask_on_image(image_id:int, mask: MaskClass, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
+    current_user=Authorize.get_jwt_identity() 
+    
+    db_image = db.query(_Image).filter(_Image.id == image_id).first()
+    db_project = db.query(_Project).filter(_Project.id == db_image.project_id).first()
+
+    if db_project.user_id != current_user: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+
+
+    db_mask = db.query(_Mask).filter(_Mask.image_id == db_image.id).first()
+    
+    
+    
+    if db_mask.id is None:
+        new_mask = _Mask(image_id=db_image.id, mask_data=json.dumps(mask, indent=4, default=str).encode("utf-8"))
+        db.add(new_mask)
+        db.commit()
+        db.refresh(new_mask)
+        print(new_mask.mask_data)
+    else:
+        db_mask.mask_data = json.dumps(mask, indent=4, default=str).encode("utf-8")
+        db.add(db_mask)
+        db.commit()
+        db.refresh(db_mask)
+
+        print(db_mask.mask_data)
+
+
 
 # TODO: Это заглушка
 @project_route.get("/get-image-by-id/{image_id}")
-async def get_user_info_photo(image_id: int, db: Session = Depends(get_db)):
-    db_personal_data = db.query(_PersonalData).filter(_PersonalData.user_id == 1).first()
-    if db_personal_data.id is None:
-        return FileResponse(os.getcwd() + "/images/noimage.jpg")
-    return Response(content=db_personal_data.photo_data, media_type="image/png")
+async def get_user_info_photo(image_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
+    current_user=Authorize.get_jwt_identity() 
+    
+    db_image = db.query(_Image).filter(_Image.id == image_id).first()
+    db_project = db.query(_Project).filter(_Project.id == db_image.project_id).first()
+    if db_project.user_id != current_user: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+    
+    return Response(content=db_image.image_data, media_type="image/png")
