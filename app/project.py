@@ -1,6 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
-from pydantic import BaseModel
+from pydantic import BaseModel, parse_obj_as
 from sqlalchemy.orm import Session
 from app.db import get_db, User as _User, PersonalData as _PersonalData, Mask as _Mask, Classes as _Classes, Project as _Project, Image as _Image
 from fastapi.responses import JSONResponse
@@ -11,7 +11,6 @@ from fastapi_jwt_auth import AuthJWT
 import random, string
 from datetime import datetime
 import json
-
 
 project_route = APIRouter()
 
@@ -224,6 +223,7 @@ class MaskClass(BaseModel):
     forms: List[FormClass]
 
 
+
 @project_route.post("/set_mask_on_image/{image_id}")
 async def set_mask_on_image(image_id:int, mask: MaskClass, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     try:
@@ -244,18 +244,43 @@ async def set_mask_on_image(image_id:int, mask: MaskClass, db: Session = Depends
     
     
     if db_mask is None:
-        new_mask = _Mask(image_id=db_image.id, mask_data=json.dumps(mask, indent=4, default=str).encode("utf-8"))
+        new_mask = _Mask(image_id=db_image.id, mask_data=str(mask.model_dump_json()).encode("utf-8"))
         db.add(new_mask)
         db.commit()
         db.refresh(new_mask)
         print(new_mask.mask_data)
     else:
-        db_mask.mask_data = json.dumps(mask, indent=4, default=str).encode("utf-8")
+        db_mask.mask_data = str(mask.model_dump_json()).encode("utf-8")
         db.add(db_mask)
         db.commit()
         db.refresh(db_mask)
 
         print(db_mask.mask_data)
+
+
+
+@project_route.get("/get_mask_on_image/{image_id}")
+async def get_mask_on_image(image_id:int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
+    current_user=Authorize.get_jwt_identity() 
+    
+    db_image = db.query(_Image).filter(_Image.id == image_id).first()
+    db_project = db.query(_Project).filter(_Project.id == db_image.project_id).first()
+
+    if db_project.user_id != current_user: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+
+
+    db_mask = db.query(_Mask).filter(_Mask.image_id == db_image.id).first()
+    
+    forms = MaskClass.model_validate_json(db_mask.mask_data.decode("utf-8"))
+    print(type(forms))
+    print(forms)
+    
+
 
 
 
