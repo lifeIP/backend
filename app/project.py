@@ -189,8 +189,8 @@ async def upload_image_in_project(project_id:int, file: UploadFile, db: Session 
 
 
 
-@project_route.get("/get_projects_images_list/{project_id}")
-async def get_projects_images_list(project_id:int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+@project_route.get("/get_projects_images_list/{project_id}/{start_index}")
+async def get_projects_images_list(project_id:int, start_index: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     try:
         Authorize.jwt_required()
     except Exception as e:
@@ -202,9 +202,21 @@ async def get_projects_images_list(project_id:int, db: Session = Depends(get_db)
     
     
     db_images = db.query(_Image).filter(_Image.project_id == project_id).all()
+    
     image_list = []
     for item in db_images:
         image_list.append(item.id)
+    image_list.sort()
+    if(len(image_list) < start_index or start_index < 1):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid start image id")
+    
+    if(len(image_list) < 50):
+        image_list = image_list[start_index-1:]
+    else:
+        image_list = image_list[start_index-1:start_index+49]
+    
+    print(len(image_list))
+    
 
     return JSONResponse(content=jsonable_encoder({ "ids": image_list }))
 
@@ -277,7 +289,7 @@ async def get_mask_on_image(image_id:int, db: Session = Depends(get_db), Authori
 
 
     db_mask = db.query(_Mask).filter(_Mask.image_id == db_image.id).first()
-    if db_mask is None: return MaskClass(forms=[])
+    if db_mask is None: return MaskClass(forms=[], canvasWidth=400, canvasHeight=300)
     forms = MaskClass.model_validate_json(db_mask.mask_data.decode("utf-8"))
     return forms
     
