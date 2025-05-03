@@ -221,6 +221,8 @@ class FormClass(BaseModel):
 
 class MaskClass(BaseModel):
     forms: List[FormClass]
+    canvasWidth: int
+    canvasHeight: int 
 
 
 
@@ -275,10 +277,9 @@ async def get_mask_on_image(image_id:int, db: Session = Depends(get_db), Authori
 
 
     db_mask = db.query(_Mask).filter(_Mask.image_id == db_image.id).first()
-    
+    if db_mask is None: return MaskClass(forms=[])
     forms = MaskClass.model_validate_json(db_mask.mask_data.decode("utf-8"))
-    print(type(forms))
-    print(forms)
+    return forms
     
 
 
