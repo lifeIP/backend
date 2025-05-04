@@ -101,6 +101,44 @@ async def create_project(project: CreateProjectSchema, db: Session = Depends(get
     return JSONResponse(content=jsonable_encoder({"status": "Ok", "id":f"{db_project.id}" }))
 
 
+
+class UpdateProjectSchema(BaseModel):
+    id:int
+    name:str
+    description: str
+    classes: List[ProjectClass]
+
+@project_route.put("/update-project-settings/")
+async def update_project_settings(project: UpdateProjectSchema, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    # проверка авторизации пользователя
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
+    current_user=Authorize.get_jwt_identity()
+    
+    db_project = db.query(_Project).filter(_Project.user_id == current_user).filter(_Project.id == project.id).first()
+    
+    db_project.name = project.name
+    db_project.description = project.description
+    
+    if len(project.classes) == 0:
+        db.add(db_project)
+        db.commit()
+        db.refresh(db_project)
+        
+    for item in project.classes:
+        db_classes = _Classes(label=item.label, description=item.description, color=item.color, projects=db_project)
+        db.add(db_classes)
+        db.commit()
+        db.refresh(db_classes)
+        
+    db.flush(db_project)
+    return JSONResponse(content=jsonable_encoder({"status": "Ok", "id":f"{db_project.id}" }))
+
+
+
+
 # TODO: Это заглушка
 @project_route.get("/get-projects-id/")
 async def create_project(db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
@@ -207,7 +245,8 @@ async def get_projects_images_list(project_id:int, start_index: int, db: Session
     for item in db_images:
         image_list.append(item.id)
     image_list.sort()
-    if(len(image_list) < start_index or start_index < 1):
+    if(start_index < 1): start_index = 1
+    if(len(image_list) < start_index):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid start image id")
     
     if(len(image_list) < 50):
