@@ -119,8 +119,8 @@ async def update_project_settings(project: UpdateProjectSchema, db: Session = De
     
     db_project = db.query(_Project).filter(_Project.user_id == current_user).filter(_Project.id == project.id).first()
     
-    db_project.name = project.name
-    db_project.description = project.description
+    if project.name != " ": db_project.name = project.name
+    if project.description != " ": db_project.description = project.description
     
     if len(project.classes) == 0:
         db.add(db_project)
@@ -128,6 +128,9 @@ async def update_project_settings(project: UpdateProjectSchema, db: Session = De
         db.refresh(db_project)
         
     for item in project.classes:
+        db_classes_f = db.query(_Classes).filter(_Classes.label == item.label).first()
+        if db_classes_f is not None:
+            continue
         db_classes = _Classes(label=item.label, description=item.description, color=item.color, projects=db_project)
         db.add(db_classes)
         db.commit()
@@ -268,6 +271,7 @@ class PointClass(BaseModel):
 
 class FormClass(BaseModel):
     class_id: int
+    mask_type: int # 0 - rect/ 1 - poligon
     points: List[PointClass]
 
 class MaskClass(BaseModel):
