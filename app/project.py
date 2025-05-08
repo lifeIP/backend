@@ -242,25 +242,24 @@ async def get_projects_images_list(project_id:int, start_index: int, db: Session
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
     
     
-    db_images = db.query(_Image).filter(_Image.project_id == project_id).all()
-    
-    image_list = []
-    for item in db_images:
-        image_list.append(item.id)
-    image_list.sort()
-    if(start_index < 1): start_index = 1
-    if(len(image_list) < start_index):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid start image id")
-    
-    if(len(image_list) < 50):
-        image_list = image_list[start_index-1:]
-    else:
-        image_list = image_list[start_index-1:start_index+49]
-    
-    print(len(image_list))
-    
+    # Определяем начало и конец диапазона
+    per_page = 50  # фиксированное количество изображений на страницу   
+    offset = max((start_index - 1) * per_page - 1, 0)  # рассчитываем правильное смещение
 
-    return JSONResponse(content=jsonable_encoder({ "ids": image_list }))
+    # Выборка нужных изображений прямо в базе данных
+    db_images = db.query(_Image.id)\
+                  .filter(_Image.project_id == project_id)\
+                  .order_by(_Image.id.asc())\
+                  .offset(offset)\
+                  .limit(per_page)\
+                  .all()
+
+    # Формирование итогового списка идентификаторов
+    image_list = [img.id for img in db_images]
+    print(offset)
+    print(image_list)
+
+    return JSONResponse(content={"ids": image_list})
 
 
 
