@@ -15,7 +15,6 @@ from io import BytesIO
 profile_route = APIRouter()
 
 
-
 def randompath(length: int):
     random_path = ''
     letters = string.ascii_lowercase

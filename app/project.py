@@ -119,13 +119,14 @@ async def update_project_settings(project: UpdateProjectSchema, db: Session = De
     
     db_project = db.query(_Project).filter(_Project.user_id == current_user).filter(_Project.id == project.id).first()
     
-    if project.name != " ": db_project.name = project.name
-    if project.description != " ": db_project.description = project.description
+    if len(project.name) > 0: db_project.name = project.name
+    if len(project.description) > 0: db_project.description = project.description
     
-    if len(project.classes) == 0:
-        db.add(db_project)
-        db.commit()
-        db.refresh(db_project)
+    # if len(project.classes) == 0:
+    db.add(db_project)
+    db.commit()
+    db.refresh(db_project)
+    db.flush(db_project)
         
     for item in project.classes:
         db_classes_f = db.query(_Classes).filter(_Classes.label == item.label).first()
@@ -136,7 +137,6 @@ async def update_project_settings(project: UpdateProjectSchema, db: Session = De
         db.commit()
         db.refresh(db_classes)
         
-    db.flush(db_project)
     return JSONResponse(content=jsonable_encoder({"status": "Ok", "id":f"{db_project.id}" }))
 
 
