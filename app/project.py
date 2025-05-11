@@ -1,8 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
-from pydantic import BaseModel, parse_obj_as
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from app.db import get_db, User as _User, PersonalData as _PersonalData, Mask as _Mask, Classes as _Classes, Project as _Project, Image as _Image
 from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse, Response
 from fastapi.encoders import jsonable_encoder
@@ -11,6 +10,18 @@ from fastapi_jwt_auth import AuthJWT
 import random, string
 from datetime import datetime
 import json
+
+
+from app.minio import save_image_in_project
+
+from app.db import get_db, \
+    User as _User, \
+    PersonalData as _PersonalData, \
+    Mask as _Mask, \
+    Classes as _Classes, \
+    Project as _Project, \
+    Image as _Image
+
 
 project_route = APIRouter()
 
@@ -220,13 +231,16 @@ async def upload_image_in_project(project_id:int, file: UploadFile, db: Session 
     if db_project.user_id != current_user: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
     
-    db_image = _Image(project_id=db_project.id, image_data=file.file.read())
+    # db_image = _Image(project_id=db_project.id, image_data=file.file.read())
     
-    db.add(db_image)
-    db.commit()
-    db.refresh(db_image)
+    # db.add(db_image)
+    # db.commit()
+    # db.refresh(db_image)
+    file_res = await file.read()
+    result = await save_image_in_project(project_id=project_id, file=file_res)
+    print(result)
 
-    return {"file_size": file.size}
+    return {"file_size": 0}
 
 
 
@@ -354,3 +368,23 @@ async def get_user_info_photo(image_id: int, db: Session = Depends(get_db), Auth
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
     
     return Response(content=db_image.image_data, media_type="image/png")
+
+
+
+
+class MemberEmailModel(BaseModel):
+    member_email: str
+
+@project_route.post("/add_new_member_in_project/")
+async def add_new_member_in_project(data:MemberEmailModel, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
+    current_user=Authorize.get_jwt_identity()
+
+
+
+    return JSONResponse(content=jsonable_encoder({ "status": 1 }))
+
+    
