@@ -17,7 +17,12 @@ from app.service.service import (
 )
 
 
-from app.service.minio import save_image_in_project, save_mask_in_project, get_image_by_path, get_mask_by_path
+from app.service.minio import (
+    save_image_in_project, 
+    save_mask_in_project, 
+    get_image_by_path, 
+    get_mask_by_path
+)
 
 from app.service.db import get_db, \
     User as _User, \
@@ -201,29 +206,6 @@ async def change_project_preview_image(project_id:int, file: UploadFile, db: Ses
     db.refresh(db_project)
 
     return {"file_size": file.size}
-
-
-
-@project_route.post("/upload_image_in_project/{project_id}")
-async def upload_image_in_project(project_id:int, file: UploadFile, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
-    current_user = auth(Authorize=Authorize) 
-    
-    db_project = db.query(_Project).filter(_Project.id == project_id).first()
-    if db_project.user_id != current_user: 
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
-    
-    print(type(file))
-    result = await save_image_in_project(project_id=project_id, file=file.file, length=file.size)
-    
-    db_image = _Image(project_id=db_project.id, image_data_path=result._object_name)
-    
-    db.add(db_image)
-    db.commit()
-    db.refresh(db_image)
-    
-
-    return {"file_size": 0}
-
 
 
 @project_route.get("/get_projects_images_list/{project_id}/{start_index}")

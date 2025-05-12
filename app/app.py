@@ -8,6 +8,7 @@ from app.routes.auth import auth
 from app.routes.user import user_route
 from app.routes.profile import profile_route
 from app.routes.project import project_route
+from app.routes.tasks import task_route
 
 
 
@@ -30,3 +31,4 @@ app.include_router(auth)
 app.include_router(user_route)
 app.include_router(profile_route)
 app.include_router(project_route)
+app.include_router(task_route)
