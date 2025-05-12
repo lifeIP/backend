@@ -107,14 +107,7 @@ async def login(request_data: LoginSchema, db: Session = Depends(get_db), Author
 
 @auth.get('/protected')
 async def get_logged_in_user(Authorize:AuthJWT=Depends()):
-    try:
-        Authorize.jwt_required()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-
-
-    current_user=Authorize.get_jwt_identity()
-
+    current_user = auth(Authorize=Authorize)
     return {"current_user":current_user}
 
 

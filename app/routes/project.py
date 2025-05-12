@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -11,6 +11,10 @@ import random, string
 from datetime import datetime
 import json
 from io import BytesIO
+
+from app.service.service import (
+    auth
+)
 
 
 from app.service.minio import save_image_in_project, save_mask_in_project, get_image_by_path, get_mask_by_path
@@ -41,11 +45,7 @@ def randompath(length: int):
 async def get_list_of_classes_in_project(project_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     
     # проверка авторизации пользователя
-    try:
-        Authorize.jwt_required()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-    current_user=Authorize.get_jwt_identity()
+    current_user = auth(Authorize=Authorize)
 
     # проверка принадлежит ли проект пользователю
     db_project = db.query(_Project).filter(_Project.id == project_id).first()
@@ -87,11 +87,7 @@ class CreateProjectSchema(BaseModel):
 @project_route.post("/create-project/")
 async def create_project(project: CreateProjectSchema, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     # проверка авторизации пользователя
-    try:
-        Authorize.jwt_required()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-    current_user=Authorize.get_jwt_identity()
+    current_user = auth(Authorize=Authorize)
     
 
     db_user = db.query(_User).filter(_User.id == current_user).first()
@@ -123,11 +119,7 @@ class UpdateProjectSchema(BaseModel):
 @project_route.put("/update-project-settings/")
 async def update_project_settings(project: UpdateProjectSchema, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     # проверка авторизации пользователя
-    try:
-        Authorize.jwt_required()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-    current_user=Authorize.get_jwt_identity()
+    current_user = auth(Authorize=Authorize)
     
     db_project = db.query(_Project).filter(_Project.user_id == current_user).filter(_Project.id == project.id).first()
     
@@ -158,11 +150,7 @@ async def update_project_settings(project: UpdateProjectSchema, db: Session = De
 @project_route.get("/get-projects-id/")
 async def create_project(db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     # проверка авторизации пользователя
-    try:
-        Authorize.jwt_required()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-    current_user=Authorize.get_jwt_identity()
+    current_user = auth(Authorize=Authorize)
 
     db_projects = db.query(_Project).filter(_Project.user_id == current_user).all()
     
@@ -200,12 +188,7 @@ async def get_projects_photo_preview_by_id(project_id: int, db: Session = Depend
 
 @project_route.post("/change_project-preview-image/{project_id}")
 async def change_project_preview_image(project_id:int, file: UploadFile, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
-    try:
-        Authorize.jwt_required()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-
-    current_user=Authorize.get_jwt_identity() 
+    current_user = auth(Authorize=Authorize)
 
     db_project = db.query(_Project).filter(_Project.id == project_id).first()
     if db_project.user_id != current_user: 
@@ -223,11 +206,8 @@ async def change_project_preview_image(project_id:int, file: UploadFile, db: Ses
 
 @project_route.post("/upload_image_in_project/{project_id}")
 async def upload_image_in_project(project_id:int, file: UploadFile, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
-    try:
-        Authorize.jwt_required()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-    current_user=Authorize.get_jwt_identity() 
+    current_user = auth(Authorize=Authorize) 
+    
     db_project = db.query(_Project).filter(_Project.id == project_id).first()
     if db_project.user_id != current_user: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
@@ -248,11 +228,7 @@ async def upload_image_in_project(project_id:int, file: UploadFile, db: Session 
 
 @project_route.get("/get_projects_images_list/{project_id}/{start_index}")
 async def get_projects_images_list(project_id:int, start_index: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
-    try:
-        Authorize.jwt_required()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-    current_user=Authorize.get_jwt_identity() 
+    current_user = auth(Authorize=Authorize) 
     db_project = db.query(_Project).filter(_Project.id == project_id).first()
     if db_project.user_id != current_user: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
@@ -298,11 +274,7 @@ class MaskClass(BaseModel):
 
 @project_route.post("/set_mask_on_image/{image_id}")
 async def set_mask_on_image(image_id:int, mask: MaskClass, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
-    try:
-        Authorize.jwt_required()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-    current_user=Authorize.get_jwt_identity() 
+    current_user = auth(Authorize=Authorize) 
     
     db_image = db.query(_Image).filter(_Image.id == image_id).first()
     db_project = db.query(_Project).filter(_Project.id == db_image.project_id).first()
@@ -332,11 +304,7 @@ async def set_mask_on_image(image_id:int, mask: MaskClass, db: Session = Depends
 
 @project_route.get("/get_mask_on_image/{image_id}")
 async def get_mask_on_image(image_id:int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
-    try:
-        Authorize.jwt_required()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-    current_user=Authorize.get_jwt_identity() 
+    current_user = auth(Authorize=Authorize) 
     
     db_image = db.query(_Image).filter(_Image.id == image_id).first()
     db_project = db.query(_Project).filter(_Project.id == db_image.project_id).first()
@@ -364,11 +332,7 @@ async def get_mask_on_image(image_id:int, db: Session = Depends(get_db), Authori
 # TODO: Это заглушка
 @project_route.get("/get-image-by-id/{image_id}")
 async def get_user_info_photo(image_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
-    try:
-        Authorize.jwt_required()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-    current_user=Authorize.get_jwt_identity() 
+    current_user = auth(Authorize=Authorize) 
     
     db_image = db.query(_Image).filter(_Image.id == image_id).first()
     db_project = db.query(_Project).filter(_Project.id == db_image.project_id).first()
@@ -388,11 +352,7 @@ class MemberEmailModel(BaseModel):
 
 @project_route.post("/add_new_member_in_project/")
 async def add_new_member_in_project(data:MemberEmailModel, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
-    try:
-        Authorize.jwt_required()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
-    current_user=Authorize.get_jwt_identity()
+    current_user = auth(Authorize=Authorize)
 
 
 
