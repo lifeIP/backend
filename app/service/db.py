@@ -100,7 +100,9 @@ class Member(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    is_creator = Column(Boolean, default=False)
     user_rights = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Обратные связи
     user = relationship("User", back_populates="members")
