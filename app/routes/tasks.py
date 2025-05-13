@@ -11,6 +11,7 @@ from app.service.db import (
     Project as _Project,
     User as _User,
     Image as _Image,
+    Member as _Member
 )
 from app.service.service import (
     auth
@@ -51,13 +52,12 @@ class TaskClass(BaseModel):
 async def create_task(task: TaskClass, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize)
     task.author_user_id = current_user
-
     # Проверяем проект на существование и права пользователя
-    db_project = db.query(_Project)\
-        .filter(_Project.id == task.project_id)\
-        .filter(_Project.user_id == current_user)\
+    db_member = db.query(_Member)\
+        .filter(_Member.user_id == current_user)\
+        .filter(_Member.project_id == task.project_id)\
         .first()
-    if db_project is None:
+    if db_member is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id")
     
     # Проверяем получателя на существование
@@ -86,11 +86,11 @@ async def upload_image_in_project(project_id:int,
     current_user = auth(Authorize=Authorize) 
     
     # Проверяем проект на существование и права пользователя
-    db_project = db.query(_Project)\
-        .filter(_Project.id == project_id)\
-        .filter(_Project.user_id == current_user)\
+    db_member = db.query(_Member)\
+        .filter(_Member.user_id == current_user)\
+        .filter(_Member.project_id == project_id)\
         .first()
-    if db_project is None:
+    if db_member is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id")
 
     db_task = db.query(_Task)\
@@ -101,12 +101,13 @@ async def upload_image_in_project(project_id:int,
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid task")
 
     result = await save_image_in_project(project_id=project_id, file=file.file, length=file.size)
-    db_image = _Image(project_id=db_project.id, image_data_path=result._object_name)    
+    db_image = _Image(project_id=project_id, image_data_path=result._object_name)    
     db.add(db_image)
     db.commit()
     db.refresh(db_image)
 
-
+    db_task.target_quantity = db_task.target_quantity + 1
+    db.add(db_image)
     db_task.images.append(db_image)
     db.commit()
     db.refresh(db_task)

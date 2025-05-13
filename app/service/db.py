@@ -29,7 +29,6 @@ class Base(DeclarativeBase):
     pass
 
 
-# Модель пользователя
 class User(Base):
     __tablename__ = "users"
 
@@ -38,7 +37,10 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     is_admin = Column(Boolean, nullable=False)
 
-    projects = relationship("Project", back_populates="users")
+    # Many-to-many relation with Projects through Member table
+    members = relationship("Member", back_populates="user")
+
+    # Other relations
     personal_data = relationship("PersonalData", back_populates="users")
     assigned_tasks = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_user_id")
     authored_tasks = relationship("Task", back_populates="author", foreign_keys="Task.author_user_id")
@@ -58,21 +60,36 @@ class PersonalData(Base):
     users = relationship("User", back_populates="personal_data")
 
 
-# Проект
+
+
 class Project(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(ForeignKey("users.id"))
-
     name = Column(String(255), nullable=False)
     description = Column(String(255), nullable=True)
     photo_data = Column(LargeBinary, nullable=True)
 
-    users = relationship("User", back_populates="projects")
+    # Members of this project
+    members = relationship("Member", back_populates="projects")
+
+    # Other relationships
     images = relationship("Image", back_populates="projects")
     classes = relationship("Classes", back_populates="projects")
-    tasks = relationship("Task", back_populates="project")
+    tasks = relationship("Task", back_populates="projects")
+    
+
+class Member(Base):
+    __tablename__ = "members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    user_rights = Column(Integer, nullable=False)
+
+    # Обратные связи
+    user = relationship("User", back_populates="members")
+    projects = relationship("Project", back_populates="members")
 
 
 # Классы объектов в рамках проекта
@@ -133,8 +150,10 @@ class Task(Base):
     assignee_user_id = Column(ForeignKey("users.id"), nullable=False)
     description = Column(String(500), nullable=False)
     status = Column(Boolean, nullable=False, default=False)
+    
+    target_quantity = Column(Integer, default=0)
 
-    project = relationship("Project", back_populates="tasks")
+    projects = relationship("Project", back_populates="tasks")
     author = relationship("User", back_populates="authored_tasks", foreign_keys=[author_user_id])
     assignee = relationship("User", back_populates="assigned_tasks", foreign_keys=[assignee_user_id])
     images: Mapped[List["Image"]] = relationship(
