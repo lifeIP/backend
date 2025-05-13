@@ -501,3 +501,19 @@ async def accept_invitation(invitation_id: int, db: Session = Depends(get_db), A
     db.commit()
 
     return JSONResponse(content=jsonable_encoder({ "status": 1 }))
+
+@project_route.get("/decline_invitation/{invitation_id}")
+async def decline_invitation(invitation_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize)
+
+    db_invitation = db.query(_Invitation)\
+        .filter(_Invitation.id == invitation_id)\
+        .filter(_Invitation.invitee_id == current_user)\
+        .first()
+    if db_invitation is None: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid invitation_id")
+    
+    db.delete(db_invitation)
+    db.commit()
+
+    return JSONResponse(content=jsonable_encoder({ "status": 1 }))
