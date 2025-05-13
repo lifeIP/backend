@@ -25,15 +25,17 @@ from app.service.minio import (
     get_mask_by_path
 )
 
-from app.service.db import get_db, \
-    User as _User, \
-    PersonalData as _PersonalData, \
-    Mask as _Mask, \
-    Classes as _Classes, \
-    Project as _Project, \
-    Image as _Image, \
-    Member as _Member
-
+from app.service.db import (
+    get_db,
+    User as _User, 
+    PersonalData as _PersonalData, 
+    Mask as _Mask, 
+    Classes as _Classes, 
+    Project as _Project, 
+    Image as _Image,
+    Member as _Member,
+    Invitation as _Invitation
+)
 
 project_route = APIRouter()
 
@@ -390,14 +392,34 @@ async def get_user_info_photo(image_id: int, db: Session = Depends(get_db), Auth
 
 
 class MemberEmailModel(BaseModel):
+    project_id: int
     member_email: str
 
 @project_route.post("/add_new_member_in_project/")
 async def add_new_member_in_project(data:MemberEmailModel, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize)
+    
+    # проверка принадлежит ли проект пользователю
+    db_member = db.query(_Member)\
+        .filter(_Member.user_id == current_user)\
+        .filter(_Member.project_id == data.project_id)\
+        .filter(_Member.user_rights == 0)\
+        .first()
+    if db_member is None: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project_id or email")
+
+    db_invitee = db.query(_User)\
+        .filter(_User.email == data.member_email)\
+        .filter(_User.id != current_user)\
+        .first()
+    if db_invitee is None: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project_id or email")
 
 
-
+    new_invitation = _Invitation(project_id=data.project_id, inviter_id=current_user, invitee_id=db_invitee.id)
+    db.add(new_invitation)
+    db.commit()
+    db.refresh(new_invitation)
     return JSONResponse(content=jsonable_encoder({ "status": 1 }))
 
     

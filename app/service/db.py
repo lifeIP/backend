@@ -11,9 +11,12 @@ from sqlalchemy import (
     ForeignKey,
     Boolean, 
     UniqueConstraint,
-    Table
+    Table,
+    DateTime
 )
 from sqlalchemy.orm import Mapped
+from datetime import datetime
+from sqlalchemy.sql import func
  
 
 
@@ -44,6 +47,18 @@ class User(Base):
     personal_data = relationship("PersonalData", back_populates="users")
     assigned_tasks = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_user_id")
     authored_tasks = relationship("Task", back_populates="author", foreign_keys="Task.author_user_id")
+
+
+class Invitation(Base):
+    __tablename__ = "invitations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    inviter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    invitee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    role = Column(Integer, nullable=False, default=2)  # 0 - admin, 1 - observer, 2 - worker
+    status = Column(Integer, nullable=False, default=0)  # 0 - open, 1 - accepted, 2 - declined
+    sent_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 # Личные данные пользователя
