@@ -446,10 +446,37 @@ async def add_new_member_in_project(data:MemberEmailModel, db: Session = Depends
     return JSONResponse(content=jsonable_encoder({ "status": 1 }))
 
 
+@project_route.get("/get_all_members_in_project/{project_id}")
+async def get_all_members_in_project(project_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize)
+    # проверка принадлежит ли проект пользователю
+    db_member = db.query(_Member)\
+        .filter(_Member.user_id == current_user)\
+        .filter(_Member.project_id == project_id)\
+        .first()
+    if db_member is None: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project_id or email")
+
+    db_member = db.query(_Member)\
+        .filter(_Member.user_id != current_user)\
+        .filter(_Member.project_id == project_id)\
+        .all()
+    
+    members = []
+    for item in db_member:
+        db_data = db.query(_PersonalData).filter(_PersonalData.user_id == item.user_id).first()
+        if db_data is None: 
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project_id or email")
+
+        members.append({
+            "name": db_data.last_name + " " + db_data.first_name,
+            "member_id": item.id,
+            "is_creator": item.is_creator,
+            "user_rights": item.user_rights,
+        })
+    return JSONResponse(content=jsonable_encoder({ "members": members }))
 
 
-# class InvitationModel(BaseModel):
-#     invitation_id: int
 
 @project_route.get("/get_all_invitation/")
 async def get_all_invitation(db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):

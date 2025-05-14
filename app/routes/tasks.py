@@ -44,7 +44,7 @@ task_route = APIRouter()
 class TaskClass(BaseModel):
     project_id: PositiveInt
     author_user_id: PositiveInt
-    assignee_user_id: PositiveInt
+    assignee_user_id: int
     description: str = Field(max_length=500)
     
 
@@ -52,7 +52,7 @@ class TaskClass(BaseModel):
 async def create_task(task: TaskClass, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize)
     task.author_user_id = current_user
-    # Проверяем проект на существование и права пользователя
+
     db_member = db.query(_Member)\
         .filter(_Member.user_id == current_user)\
         .filter(_Member.project_id == task.project_id)\
@@ -60,9 +60,12 @@ async def create_task(task: TaskClass, db: Session = Depends(get_db), Authorize:
     if db_member is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id")
     
+    if task.assignee_user_id == 0: 
+        task.assignee_user_id = db_member.id
+        
     # Проверяем получателя на существование
-    db_user = db.query(_User)\
-        .filter(_User.id == task.assignee_user_id)\
+    db_user = db.query(_Member)\
+        .filter(_Member.id == task.assignee_user_id)\
         .first()
     if db_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid assignee_user_id")
