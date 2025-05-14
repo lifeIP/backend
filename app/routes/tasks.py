@@ -46,6 +46,8 @@ class TaskClass(BaseModel):
     author_user_id: PositiveInt
     assignee_user_id: int
     description: str = Field(max_length=500)
+    target_quantity: PositiveInt
+    
     
 
 @task_route.post("/create-task/")
@@ -109,7 +111,10 @@ async def upload_image_in_project(project_id:int,
     db.commit()
     db.refresh(db_image)
 
-    db_task.target_quantity = db_task.target_quantity + 1
+    db_task.quantity = db_task.quantity + 1
+    if db_task.quantity >= db_task.target_quantity:
+        db_task.status = True
+
     db.add(db_image)
     db_task.images.append(db_image)
     db.commit()

@@ -168,6 +168,7 @@ class Task(Base):
     description = Column(String(500), nullable=False)
     status = Column(Boolean, nullable=False, default=False)
     
+    quantity = Column(Integer, default=0)
     target_quantity = Column(Integer, default=0)
 
     projects = relationship("Project", back_populates="tasks")
