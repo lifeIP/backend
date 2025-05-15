@@ -115,6 +115,7 @@ async def create_project(project: CreateProjectSchema, db: Session = Depends(get
 
             # 6. Создаем классы для проекта
             for item in project.classes:
+                if len(item.label) == 0: continue
                 db_classes = _Classes(label=item.label, description=item.description, color=item.color, project_id=new_project.id)
                 db.add(db_classes)
             
@@ -172,6 +173,8 @@ async def update_project_settings(project: UpdateProjectSchema, db: Session = De
     db.flush(db_project)
         
     for item in project.classes:
+        if len(item.label) == 0: continue
+        
         db_classes_f = db.query(_Classes)\
             .filter(_Classes.project_id == db_member.project_id)\
             .filter(_Classes.label == item.label)\
