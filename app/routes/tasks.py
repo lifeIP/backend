@@ -82,6 +82,29 @@ async def create_task(task: TaskClass, db: Session = Depends(get_db), Authorize:
     return JSONResponse(content=jsonable_encoder({"task_id": new_task.id}))
 
 
+@task_route.get("/get-member-task-info-in-project/{project_id}/{member_id}")
+async def get_member_task_ids_in_project(project_id: int, member_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize)
+
+    db_member = db.query(_Member)\
+        .filter(_Member.user_id == current_user)\
+        .filter(_Member.project_id == project_id)\
+        .first()
+    if db_member is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id or member_id")
+    
+    db_tasks = db.query(_Task)\
+        .filter(_Task.assignee_user_id == member_id)\
+        .filter(_Task.project_id == project_id)\
+        .all()
+    if db_tasks is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id or member_id")
+    
+    task_info_list = []
+    for task in db_tasks:
+        task_info_list.append({"task_id": task.id, "description": task.description, "quantity": task.quantity})
+    return JSONResponse(content=jsonable_encoder({"tasks": task_info_list}))
+
 
 @task_route.post("/upload_image_in_project/{project_id}")
 async def upload_image_in_project(project_id:int, 
