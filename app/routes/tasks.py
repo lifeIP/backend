@@ -146,3 +146,28 @@ async def upload_image_in_project(project_id:int,
     return JSONResponse(content=jsonable_encoder({"file_size": file.size}))
 
 
+@task_route.get("/upload_image_in_project_status/{project_id}")
+async def upload_image_in_project_status(project_id:int, 
+                                  db: Session = Depends(get_db), 
+                                  Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize) 
+
+    # Проверяем проект на существование и права пользователя
+    db_member = db.query(_Member)\
+        .filter(_Member.user_id == current_user)\
+        .filter(_Member.project_id == project_id)\
+        .first()
+    if db_member is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id")
+    
+
+    db_task = db.query(_Task)\
+        .filter(_Task.project_id == project_id)\
+        .filter(_Task.author_user_id == current_user)\
+        .filter(_Task.status == False)\
+        .first()
+    
+    if db_task is None:
+        return JSONResponse(content=jsonable_encoder({"status": 0}))
+    return JSONResponse(content=jsonable_encoder({"status": 1}))
+    
