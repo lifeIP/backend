@@ -316,11 +316,11 @@ class FormClass(BaseModel):
     class_id: int
     mask_type: int # 0 - rect/ 1 - poligon
     points: List[PointClass]
+    canvasWidth: int
+    canvasHeight: int 
 
 class MaskClass(BaseModel):
     forms: List[FormClass]
-    canvasWidth: int
-    canvasHeight: int 
 
 
 
@@ -372,7 +372,7 @@ async def get_mask_on_image(image_id:int, db: Session = Depends(get_db), Authori
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid image id")
 
     db_mask = db.query(_Mask).filter(_Mask.image_id == db_image.id).first()
-    if db_mask is None: return MaskClass(forms=[], canvasWidth=400, canvasHeight=300)
+    if db_mask is None: return MaskClass(forms=[])
 
     result = get_mask_by_path(db_member.project_id, db_mask.mask_data_path)
     res_mask = []
