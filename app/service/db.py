@@ -84,6 +84,7 @@ class Project(Base):
     name = Column(String(255), nullable=False)
     description = Column(String(255), nullable=True)
     photo_data = Column(LargeBinary, nullable=True)
+    total_images_count = Column(Integer, default=0)
 
     # Members of this project
     members = relationship("Member", back_populates="projects")

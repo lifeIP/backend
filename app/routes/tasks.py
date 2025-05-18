@@ -131,9 +131,17 @@ async def upload_image_in_project(project_id:int,
     result = await save_image_in_project(project_id=project_id, file=file.file, length=file.size)
     db_image = _Image(project_id=project_id, image_data_path=result._object_name)    
     db.add(db_image)
+    
+    db_project = db.query(_Project)\
+        .filter(_Project.id == project_id)\
+        .first()
+    db_project.total_images_count += 1
+    db.add(db_project)
+
     db.commit()
     db.refresh(db_image)
 
+    
     db_task.quantity = db_task.quantity + 1
     if db_task.quantity >= db_task.target_quantity:
         db_task.status = True
