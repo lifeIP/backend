@@ -212,4 +212,4 @@ async def get_task_images_list(task_id:int, start_index: int, db: Session = Depe
 
     image_list = [img.id for img in db_images]
 
-    return JSONResponse(content={"ids": image_list})
+    return JSONResponse(content={"ids": image_list, "total_images_count": db_task.quantity})

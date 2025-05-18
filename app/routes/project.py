@@ -300,10 +300,14 @@ async def get_projects_images_list(project_id:int, start_index: int, db: Session
 
     # Формирование итогового списка идентификаторов
     image_list = [img.id for img in db_images]
-    print(offset)
-    print(image_list)
-
-    return JSONResponse(content={"ids": image_list})
+    
+    db_count = db.query(_Project.total_images_count)\
+        .filter(_Project.id == project_id)\
+        .first()
+    if db_count is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+    
+    return JSONResponse(content={"ids": image_list, "total_images_count": db_count[0]})
 
 
 
