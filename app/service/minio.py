@@ -30,19 +30,19 @@ def generate_random_filename(length=10):
 async def save_image_in_project(project_id: int, file: BinaryIO, length: int):
     temp_file_path = f"dataset/images/{generate_random_filename()}.jpg"
     bucket_name = "project-" + str(project_id)
-    if not client.bucket_exists(bucket_name):
-        client.make_bucket(bucket_name)
+    if not await client.bucket_exists(bucket_name):
+        await client.make_bucket(bucket_name)
 
-    result = client.put_object(bucket_name=bucket_name, object_name=temp_file_path, data=file, length=length)    
+    result = await client.put_object(bucket_name=bucket_name, object_name=temp_file_path, data=file, length=length)    
     return result
 
 async def save_mask_in_project(project_id: int, image_path:str, file: BinaryIO, length: int):
     temp_file_path = f"dataset/masks/{image_path.split('/')[-1].split('.')[0]}.msk"
     bucket_name = "project-" + str(project_id)
-    if not client.bucket_exists(bucket_name):
-        client.make_bucket(bucket_name)
+    if not await client.bucket_exists(bucket_name):
+        await client.make_bucket(bucket_name)
 
-    result = client.put_object(bucket_name=bucket_name, object_name=temp_file_path, data=file, length=length)    
+    result = await client.put_object(bucket_name=bucket_name, object_name=temp_file_path, data=file, length=length)    
     return result
 
 
