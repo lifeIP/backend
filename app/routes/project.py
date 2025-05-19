@@ -378,13 +378,10 @@ async def get_mask_on_image(image_id:int, db: Session = Depends(get_db), Authori
     db_mask = db.query(_Mask).filter(_Mask.image_id == db_image.id).first()
     if db_mask is None: return MaskClass(forms=[])
 
-    result = get_mask_by_path(db_member.project_id, db_mask.mask_data_path)
-    res_mask = []
-    async for value in result:
-        res_mask.append(value)
-    res_mask = b''.join(res_mask)
+    result = await get_mask_by_path(db_member.project_id, db_mask.mask_data_path)
+    
 
-    forms = MaskClass.model_validate_json(res_mask.decode("utf-8"))
+    forms = MaskClass.model_validate_json(result.decode("utf-8"))
     return forms
     
 
@@ -408,10 +405,10 @@ async def get_user_info_photo(image_id: int, db: Session = Depends(get_db), Auth
     if db_member is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid image id")
     
-    return StreamingResponse(
-        get_image_by_path(db_image.project_id, db_image.image_data_path),
-        media_type='application/octet-stream'
-    )
+    photo = await get_image_by_path(db_image.project_id, db_image.image_data_path)
+    
+    return Response(content=photo, media_type="image/png")
+
     
 
 

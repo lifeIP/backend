@@ -1,6 +1,6 @@
 import os
 from typing import BinaryIO
-from minio import Minio
+from miniopy_async import Minio
 import aiofiles
 from tempfile import NamedTemporaryFile
 from pathlib import Path
@@ -50,24 +50,11 @@ async def save_mask_in_project(project_id: int, image_path:str, file: BinaryIO, 
 
 async def get_image_by_path(project_id:int, path:str):
     bucket_name = "project-" + str(project_id)
-    info = client.stat_object(bucket_name, path)
-    total_size = info.size
-    offset = 0
-    while True:
-        response = client.get_object(bucket_name, path, offset=offset, length=32768)
-        yield response.read()
-        offset = offset + 32768
-        if offset >= total_size:
-            break
+    response = await client.get_object(bucket_name, path)
+    return await response.read()
+    
 
 async def get_mask_by_path(project_id:int, path:str):
     bucket_name = "project-" + str(project_id)
-    info = client.stat_object(bucket_name, path)
-    total_size = info.size
-    offset = 0
-    while True:
-        response = client.get_object(bucket_name, path, offset=offset, length=32768)
-        yield response.read()
-        offset = offset + 32768
-        if offset >= total_size:
-            break
+    response = await client.get_object(bucket_name, path)
+    return await response.read()
