@@ -75,7 +75,14 @@ class PersonalData(Base):
     users = relationship("User", back_populates="personal_data")
 
 
-
+dataset_images_association_table = Table(
+    "dataset_images",
+    Base.metadata,
+    Column("project_id", ForeignKey("projects.id")),
+    Column("image_id", ForeignKey("images.id")),
+    Column("destination_in_dataset ", Integer, default=0),
+    UniqueConstraint("project_id", "image_id"),
+)
 
 class Project(Base):
     __tablename__ = "projects"
@@ -86,9 +93,13 @@ class Project(Base):
     photo_data = Column(LargeBinary, nullable=True)
     total_images_count = Column(Integer, default=0)
 
+    dataset: Mapped[List["Image"]] = relationship(
+        "Image", secondary=dataset_images_association_table, back_populates="projects"
+    )
+
+
     # Members of this project
     members = relationship("Member", back_populates="projects")
-
     # Other relationships
     images = relationship("Image", back_populates="projects")
     classes = relationship("Classes", back_populates="projects")
@@ -131,10 +142,14 @@ class Image(Base):
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(ForeignKey("projects.id"))
     image_data_path = Column(String(60), nullable=True)
-
-    projects = relationship("Project", back_populates="images")
+    
+    projects = relationship("Project",secondary="dataset_images", back_populates="images")
     masks = relationship("Mask", back_populates="image")
     tasks = relationship("Task", secondary="task_images", back_populates="images")
+
+
+
+
 
 
 # Маски изображений

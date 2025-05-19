@@ -332,6 +332,10 @@ class MaskClass(BaseModel):
 async def set_mask_on_image(image_id:int, mask: MaskClass, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize) 
     
+    if len(mask.forms) == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid mask")
+    
+
     db_image = db.query(_Image).filter(_Image.id == image_id).first()
     if db_image is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid image id")
