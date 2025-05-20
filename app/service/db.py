@@ -31,7 +31,24 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 class Base(DeclarativeBase):
     pass
 
+dataset_images_association_table = Table(
+    "dataset_images",
+    Base.metadata,
+    Column("project_id", ForeignKey("projects.id")),
+    Column("image_id", ForeignKey("images.id")),
+    Column("image_purpose", Integer),  # Целочисленное поле назначения (0-test, 1-train, 2-valid)
+    UniqueConstraint("project_id", "image_id"),
+)
 
+task_images_association_table = Table(
+    "task_images",
+    Base.metadata,
+    Column("task_id", ForeignKey("tasks.id")),
+    Column("image_id", ForeignKey("images.id")),
+    UniqueConstraint("task_id", "image_id"),
+)
+
+# Пользователь
 class User(Base):
     __tablename__ = "users"
 
@@ -49,18 +66,6 @@ class User(Base):
     authored_tasks = relationship("Task", back_populates="author", foreign_keys="Task.author_user_id")
 
 
-class Invitation(Base):
-    __tablename__ = "invitations"
-
-    id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
-    inviter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    invitee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    role = Column(Integer, nullable=False, default=2)  # 0 - admin, 1 - observer, 2 - worker
-    status = Column(Integer, nullable=False, default=0)  # 0 - open, 1 - accepted, 2 - declined
-    sent_at = Column(DateTime(timezone=True), server_default=func.now())
-
-
 # Личные данные пользователя
 class PersonalData(Base):
     __tablename__ = "personal_data"
@@ -75,15 +80,20 @@ class PersonalData(Base):
     users = relationship("User", back_populates="personal_data")
 
 
-dataset_images_association_table = Table(
-    "dataset_images",
-    Base.metadata,
-    Column("project_id", ForeignKey("projects.id")),
-    Column("image_id", ForeignKey("images.id")),
-    Column("destination_in_dataset ", Integer, default=0),
-    UniqueConstraint("project_id", "image_id"),
-)
+# Инвайты
+class Invitation(Base):
+    __tablename__ = "invitations"
 
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    inviter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    invitee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    role = Column(Integer, nullable=False, default=2)  # 0 - admin, 1 - observer, 2 - worker
+    status = Column(Integer, nullable=False, default=0)  # 0 - open, 1 - accepted, 2 - declined
+    sent_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# Проект
 class Project(Base):
     __tablename__ = "projects"
 
@@ -93,19 +103,20 @@ class Project(Base):
     photo_data = Column(LargeBinary, nullable=True)
     total_images_count = Column(Integer, default=0)
 
-    dataset: Mapped[List["Image"]] = relationship(
+    # Dataset images (используем ассоциативную таблицу)
+    dataset_images: Mapped[List["Image"]] = relationship(
         "Image", secondary=dataset_images_association_table, back_populates="projects"
     )
 
-
     # Members of this project
     members = relationship("Member", back_populates="projects")
+
     # Other relationships
-    images = relationship("Image", back_populates="projects")
     classes = relationship("Classes", back_populates="projects")
     tasks = relationship("Task", back_populates="projects")
-    
 
+
+# Участник проекта
 class Member(Base):
     __tablename__ = "members"
 
@@ -135,24 +146,20 @@ class Classes(Base):
     projects = relationship("Project", back_populates="classes")
 
 
-# Изображения проекта
+# Изображение
 class Image(Base):
     __tablename__ = "images"
 
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(ForeignKey("projects.id"))
     image_data_path = Column(String(60), nullable=True)
-    
-    projects = relationship("Project",secondary="dataset_images", back_populates="images")
+
+    projects = relationship("Project", secondary="dataset_images", back_populates="dataset_images")
     masks = relationship("Mask", back_populates="image")
     tasks = relationship("Task", secondary="task_images", back_populates="images")
 
 
-
-
-
-
-# Маски изображений
+# Маска изображения
 class Mask(Base):
     __tablename__ = "mask"
 
@@ -161,16 +168,6 @@ class Mask(Base):
     mask_data_path = Column(String(60), nullable=True)
 
     image = relationship("Image", back_populates="masks")
-
-
-# Ассоциативная таблица для связи задач и изображений
-task_images_association_table = Table(
-    "task_images",
-    Base.metadata,
-    Column("task_id", ForeignKey("tasks.id")),
-    Column("image_id", ForeignKey("images.id")),
-    UniqueConstraint("task_id", "image_id"),
-)
 
 
 # Задача
@@ -183,7 +180,7 @@ class Task(Base):
     assignee_user_id = Column(ForeignKey("users.id"), nullable=False)
     description = Column(String(500), nullable=False)
     status = Column(Boolean, nullable=False, default=False)
-    
+
     quantity = Column(Integer, default=0)
     target_quantity = Column(Integer, default=0)
 
@@ -193,7 +190,6 @@ class Task(Base):
     images: Mapped[List["Image"]] = relationship(
         "Image", secondary=task_images_association_table, back_populates="tasks"
     )
-
 
 Base.metadata.create_all(bind=engine)
 
