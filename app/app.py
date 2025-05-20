@@ -9,7 +9,7 @@ from app.routes.user import user_route
 from app.routes.profile import profile_route
 from app.routes.project import project_route
 from app.routes.tasks import task_route
-
+from app.routes.dataset import dataset_route
 
 
 app = FastAPI()
@@ -27,6 +27,7 @@ app.add_middleware(
     allow_headers=["*"]  # Allows all headers
 )
 
+app.include_router(dataset_route)
 app.include_router(auth)
 app.include_router(user_route)
 app.include_router(profile_route)

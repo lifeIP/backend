@@ -36,7 +36,6 @@ dataset_images_association_table = Table(
     Base.metadata,
     Column("project_id", ForeignKey("projects.id")),
     Column("image_id", ForeignKey("images.id")),
-    Column("image_purpose", Integer),  # Целочисленное поле назначения (0-test, 1-train, 2-valid)
     UniqueConstraint("project_id", "image_id"),
 )
 
@@ -153,6 +152,7 @@ class Image(Base):
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(ForeignKey("projects.id"))
     image_data_path = Column(String(60), nullable=True)
+    image_purpose = Column(Integer, nullable=False, default=0)  # Целочисленное поле назначения (0-void, 1-test, 2-train, 3-valid)
 
     projects = relationship("Project", secondary="dataset_images", back_populates="dataset_images")
     masks = relationship("Mask", back_populates="image")

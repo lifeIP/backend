@@ -38,9 +38,20 @@ from app.service.minio import (
 )
 
 
-dataset = APIRouter()
+dataset_route = APIRouter()
 
 
-@dataset.post("/move_task_images_in_dataset", status_code=201)
-async def move_task_images_in_dataset(db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
-    pass
+@dataset_route.post("/move_task_images_in_dataset/{project_id}/{task_id}", status_code=201)
+async def move_task_images_in_dataset(project_id:int, task_id:int, db: Session = Depends(get_db)):
+    current_user = 1
+
+    db_project = db.query(_Project)\
+        .filter(_Project.id == project_id)\
+        .first()
+    db_task = db.query(_Task)\
+        .filter(_Task.id == task_id)\
+        .first()
+    
+    for image in db_task.images:
+        db_project.dataset_images.append(image)
+        db.commit()
