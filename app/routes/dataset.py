@@ -41,9 +41,14 @@ from app.service.minio import (
 dataset_route = APIRouter()
 
 
+
+    
+
 @dataset_route.post("/move_task_images_in_dataset/{project_id}/{task_id}", status_code=201)
 async def move_task_images_in_dataset(project_id:int, task_id:int, db: Session = Depends(get_db)):
     current_user = 1
+
+    # TODO: Добавить проверку полномочий пользователя
 
     db_project = db.query(_Project)\
         .filter(_Project.id == project_id)\

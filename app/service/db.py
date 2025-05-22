@@ -152,6 +152,7 @@ class Image(Base):
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(ForeignKey("projects.id"))
     image_data_path = Column(String(60), nullable=True)
+    is_marked_up = Column(Boolean, nullable=False, default=False)
     image_purpose = Column(Integer, nullable=False, default=0)  # Целочисленное поле назначения (0-void, 1-test, 2-train, 3-valid)
 
     projects = relationship("Project", secondary="dataset_images", back_populates="dataset_images")
