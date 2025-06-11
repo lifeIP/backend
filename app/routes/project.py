@@ -354,14 +354,17 @@ async def set_mask_on_image(image_id:int, mask: MaskClass, db: Session = Depends
     db_mask = db.query(_Mask).filter(_Mask.image_id == db_image.id).first()
     if db_mask is None:
         new_mask = _Mask(image_id=db_image.id, mask_data_path=result._object_name)
+        db_image.is_marked_up = True
+        db.add(db_image)
         db.add(new_mask)
         db.commit()
-        db.refresh(new_mask)    
     else:
         db_mask.mask_data_path = result._object_name
+        db_image.is_marked_up = True
+        db.add(db_image)
         db.add(db_mask)
         db.commit()
-        db.refresh(db_mask)
+
 
 
 

@@ -213,3 +213,73 @@ async def get_task_images_list(task_id:int, start_index: int, db: Session = Depe
     image_list = [img.id for img in db_images]
 
     return JSONResponse(content={"ids": image_list, "total_images_count": db_task.quantity})
+
+
+@task_route.get("/get_task_images_marked_up_list/{task_id}/{start_index}")
+async def get_task_images_marked_up_list(task_id:int, start_index: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize) 
+    
+    db_task = db.query(_Task)\
+        .filter(_Task.id == task_id)\
+        .filter(_Task.assignee_user_id == current_user)\
+        .first()
+    if db_task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid task_id")
+    
+    # Определяем начало и конец диапазона
+    per_page = 50  # фиксированное количество изображений на страницу   
+    offset = max((start_index - 1) * per_page - 1, 0)  # рассчитываем правильное смещение
+
+
+
+    db_images = db.query(_Image)\
+        .filter(_Image.is_marked_up == True)\
+        .join(_Task.images)\
+        .filter(_Task.assignee_user_id == current_user)\
+        .filter(_Task.id == task_id)\
+        .order_by(_Image.id.asc())\
+        .offset(offset)\
+        .limit(50)\
+        .options(joinedload(_Image.tasks))\
+        .all()
+    
+    if db_images is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid task_id")
+
+    image_list = [img.id for img in db_images]
+    return JSONResponse(content={"ids": image_list, "total_images_count": db_task.quantity})
+
+
+@task_route.get("/get_task_images_not_marked_up_list/{task_id}/{start_index}")
+async def get_task_images_not_marked_up_list(task_id:int, start_index: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize) 
+    
+    db_task = db.query(_Task)\
+        .filter(_Task.id == task_id)\
+        .filter(_Task.assignee_user_id == current_user)\
+        .first()
+    if db_task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid task_id")
+    
+    # Определяем начало и конец диапазона
+    per_page = 50  # фиксированное количество изображений на страницу   
+    offset = max((start_index - 1) * per_page - 1, 0)  # рассчитываем правильное смещение
+
+
+
+    db_images = db.query(_Image)\
+        .filter(_Image.is_marked_up == False)\
+        .join(_Task.images)\
+        .filter(_Task.assignee_user_id == current_user)\
+        .filter(_Task.id == task_id)\
+        .order_by(_Image.id.asc())\
+        .offset(offset)\
+        .limit(50)\
+        .options(joinedload(_Image.tasks))\
+        .all()
+    
+    if db_images is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid task_id")
+
+    image_list = [img.id for img in db_images]
+    return JSONResponse(content={"ids": image_list, "total_images_count": db_task.quantity})
