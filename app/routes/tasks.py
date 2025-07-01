@@ -20,6 +20,7 @@ from app.service.service import (
 from fastapi_jwt_auth import AuthJWT
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
 
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -105,6 +106,28 @@ async def get_member_task_ids_in_project(project_id: int, member_id: int, db: Se
         task_info_list.append({"task_id": task.id, "description": task.description, "quantity": task.quantity})
     return JSONResponse(content=jsonable_encoder({"tasks": task_info_list}))
 
+@task_route.get("/get-task-info-in-project/{project_id}")
+async def get_task_ids_in_project(project_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize)
+
+    db_member = db.query(_Member)\
+        .filter(_Member.user_id == current_user)\
+        .filter(_Member.project_id == project_id)\
+        .first()
+    if db_member is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id or member_id")
+    
+    db_tasks = db.query(_Task)\
+        .filter(_Task.project_id == project_id)\
+        .all()
+    if db_tasks is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id or member_id")
+    
+    task_info_list = []
+    for task in db_tasks:
+        task_info_list.append({"task_id": task.id, "description": task.description, "quantity": task.quantity, "task_owner": task.assignee.personal_data[0].first_name + " " + task.assignee.personal_data[0].last_name})
+    return JSONResponse(content=jsonable_encoder({"tasks": task_info_list}))
+
 
 @task_route.post("/upload_image_in_project/{project_id}")
 async def upload_image_in_project(project_id:int, 
@@ -186,7 +209,7 @@ async def get_task_images_list(task_id:int, start_index: int, db: Session = Depe
     
     db_task = db.query(_Task)\
         .filter(_Task.id == task_id)\
-        .filter(_Task.assignee_user_id == current_user)\
+        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user) )\
         .first()
     if db_task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid task_id")
@@ -199,7 +222,7 @@ async def get_task_images_list(task_id:int, start_index: int, db: Session = Depe
 
     db_images = db.query(_Image)\
         .join(_Task.images)\
-        .filter(_Task.assignee_user_id == current_user)\
+        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user))\
         .filter(_Task.id == task_id)\
         .order_by(_Image.id.asc())\
         .offset(offset)\
@@ -221,7 +244,7 @@ async def get_task_images_marked_up_list(task_id:int, start_index: int, db: Sess
     
     db_task = db.query(_Task)\
         .filter(_Task.id == task_id)\
-        .filter(_Task.assignee_user_id == current_user)\
+        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user))\
         .first()
     if db_task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid task_id")
@@ -235,7 +258,7 @@ async def get_task_images_marked_up_list(task_id:int, start_index: int, db: Sess
     db_images = db.query(_Image)\
         .filter(_Image.is_marked_up == True)\
         .join(_Task.images)\
-        .filter(_Task.assignee_user_id == current_user)\
+        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user))\
         .filter(_Task.id == task_id)\
         .order_by(_Image.id.asc())\
         .offset(offset)\
@@ -256,7 +279,7 @@ async def get_task_images_not_marked_up_list(task_id:int, start_index: int, db: 
     
     db_task = db.query(_Task)\
         .filter(_Task.id == task_id)\
-        .filter(_Task.assignee_user_id == current_user)\
+        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user))\
         .first()
     if db_task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid task_id")
@@ -270,7 +293,7 @@ async def get_task_images_not_marked_up_list(task_id:int, start_index: int, db: 
     db_images = db.query(_Image)\
         .filter(_Image.is_marked_up == False)\
         .join(_Task.images)\
-        .filter(_Task.assignee_user_id == current_user)\
+        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user))\
         .filter(_Task.id == task_id)\
         .order_by(_Image.id.asc())\
         .offset(offset)\

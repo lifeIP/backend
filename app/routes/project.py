@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
 from pydantic import BaseModel
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.responses import FileResponse, Response
@@ -231,18 +232,30 @@ class ProjectInfo(BaseModel):
     id: int
     name: str
     description: str
+    user_rights: int
 
 @project_route.get("/get-projects-info-by-id/{project_id}")
-async def get_projects_info_by_id(project_id: int, db: Session = Depends(get_db)):
+async def get_projects_info_by_id(project_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize)
+
+    db_member = db.query(_Member)\
+        .filter(_Member.user_id == current_user)\
+        .filter(_Member.project_id == project_id)\
+        .first()
+    if db_member is None: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+
     db_projects = db.query(_Project).filter(_Project.id == project_id).first()
     if db_projects is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
-    project_info = ProjectInfo(id=db_projects.id, name=db_projects.name, description=db_projects.description)
+    project_info = ProjectInfo(id=db_projects.id, name=db_projects.name, description=db_projects.description, user_rights=db_member.user_rights)
     return JSONResponse(content=jsonable_encoder(project_info))
 
 
 @project_route.get("/get-projects-photo-preview-by-id/{project_id}")
-async def get_projects_photo_preview_by_id(project_id: int, db: Session = Depends(get_db)):
+async def get_projects_photo_preview_by_id(project_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize)
+
     db_projects = db.query(_Project).filter(_Project.id == project_id).first()
     if db_projects is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
@@ -406,8 +419,8 @@ async def get_user_info_photo(image_id: int, db: Session = Depends(get_db), Auth
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid image id")
     
     db_member = db.query(_Member)\
-        .filter(_Member.user_id == current_user)\
         .filter(_Member.project_id == db_image.project_id)\
+        .filter(_Member.user_id == current_user)\
         .first()
     if db_member is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid image id")
