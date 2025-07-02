@@ -309,3 +309,23 @@ async def get_task_images_not_marked_up_list(task_id:int, start_index: int, db: 
 
     image_list = [img.id for img in db_images]
     return JSONResponse(content={"ids": image_list, "total_images_count": db_task.quantity})
+
+
+@task_route.get("/get_task_image_count/{task_id}")
+async def get_task_image_count(task_id:int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize) 
+    
+    db_task = db.query(_Task)\
+        .filter(_Task.id == task_id)\
+        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user))\
+        .first()
+    if db_task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid task_id")
+    
+    counter = 0
+    for image in db_task.images:
+        if image.is_marked_up:
+            counter+=1
+
+    print(counter)
+    return JSONResponse(content={"image_count": counter})
