@@ -36,6 +36,12 @@ async def save_image_in_project(project_id: int, file: BinaryIO, length: int):
     result = await client.put_object(bucket_name=bucket_name, object_name=temp_file_path, data=file, length=length)    
     return result
 
+async def remove_image(project_id: int, path: str):
+    bucket_name = "project-" + str(project_id)
+    result = await client.remove_object(bucket_name, path)
+    return result
+
+
 async def save_mask_in_project(project_id: int, image_path:str, file: BinaryIO, length: int):
     temp_file_path = f"dataset/masks/{image_path.split('/')[-1].split('.')[0]}.msk"
     bucket_name = "project-" + str(project_id)

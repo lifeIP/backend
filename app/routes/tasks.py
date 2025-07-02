@@ -33,6 +33,7 @@ from pydantic import (
 )
 
 from app.service.minio import (
+    remove_image,
     save_image_in_project, 
     save_mask_in_project, 
     get_image_by_path, 
@@ -329,3 +330,41 @@ async def get_task_image_count(task_id:int, db: Session = Depends(get_db), Autho
 
     print(counter)
     return JSONResponse(content={"image_count": counter})
+
+
+
+@task_route.get("/transfer_to_dataset/{task_id}/{train}/{test}/{valid}")
+async def transfer_to_dataset(task_id:int, test:int, train:int, valid:int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize)
+    
+    db_task = db.query(_Task).filter(_Task.id == task_id).first()
+
+
+    train_set = []
+    test_set = []
+    valid_set = []
+
+    for image in db_task.images:
+        if image.is_marked_up == 0:
+            await remove_image(db_task.project_id, image.image_data_path)
+            db.delete(image)
+            continue
+
+        if train_set.__len__() < train:
+            image.image_purpose = 1
+            db.add(image)
+            db_task.projects.dataset_images.append(image)
+            
+        elif test_set.__len__() < test:
+            image.image_purpose = 2
+            db.add(image)
+            db_task.projects.dataset_images.append(image)
+            
+        elif valid_set.__len__() < valid:
+            image.image_purpose = 3
+            db.add(image)
+            db_task.projects.dataset_images.append(image)
+            
+    db.delete(db_task)
+    db.commit()
+    

@@ -47,6 +47,7 @@ task_images_association_table = Table(
     UniqueConstraint("task_id", "image_id"),
 )
 
+
 # Пользователь
 class User(Base):
     __tablename__ = "users"
@@ -115,6 +116,7 @@ class Project(Base):
     tasks = relationship("Task", back_populates="projects")
 
 
+
 # Участник проекта
 class Member(Base):
     __tablename__ = "members"
@@ -153,7 +155,7 @@ class Image(Base):
     project_id = Column(ForeignKey("projects.id"))
     image_data_path = Column(String(60), nullable=True)
     is_marked_up = Column(Boolean, nullable=False, default=False)
-    image_purpose = Column(Integer, nullable=False, default=0)  # Целочисленное поле назначения (0-void, 1-test, 2-train, 3-valid)
+    image_purpose = Column(Integer, nullable=False, default=0)  # Целочисленное поле назначения (0-void, 1-train, 1-test, 3-valid)
 
     projects = relationship("Project", secondary="dataset_images", back_populates="dataset_images")
     masks = relationship("Mask", back_populates="image")
@@ -182,6 +184,7 @@ class Task(Base):
     description = Column(String(500), nullable=False)
     status = Column(Boolean, nullable=False, default=False)
 
+    
     quantity = Column(Integer, default=0)
     target_quantity = Column(Integer, default=0)
 
