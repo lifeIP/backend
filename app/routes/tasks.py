@@ -6,6 +6,7 @@ from fastapi import (
     UploadFile,
 )
 from app.service.db import (
+    PersonalData as _PersonalData,
     get_db,
     Task as _Task,
     Project as _Project,
@@ -64,7 +65,7 @@ async def create_task(task: TaskClass, db: Session = Depends(get_db), Authorize:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id")
     
     if task.assignee_user_id == 0: 
-        task.assignee_user_id = db_member.id
+        task.assignee_user_id = db_member.user_id
         
     # Проверяем получателя на существование
     db_user = db.query(_Member)\
@@ -123,11 +124,11 @@ async def get_task_ids_in_project(project_id: int, db: Session = Depends(get_db)
         .all()
     if db_tasks is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id or member_id")
-    
     task_info_list = []
+    
     for task in db_tasks:
-        print(task.assignee)
-        task_info_list.append({"task_id": task.id, "description": task.description, "quantity": task.quantity, "task_owner": "sad"})
+        
+        task_info_list.append({"task_id": task.id, "description": task.description, "quantity": task.quantity, "task_owner": task.assignee.personal_data[0].first_name + " " + task.assignee.personal_data[0].last_name})
     return JSONResponse(content=jsonable_encoder({"tasks": task_info_list}))
 
 
