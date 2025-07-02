@@ -113,6 +113,7 @@ async def get_task_ids_in_project(project_id: int, db: Session = Depends(get_db)
     db_member = db.query(_Member)\
         .filter(_Member.user_id == current_user)\
         .filter(_Member.project_id == project_id)\
+        .filter(_Member.is_creator)\
         .first()
     if db_member is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id or member_id")
@@ -125,7 +126,8 @@ async def get_task_ids_in_project(project_id: int, db: Session = Depends(get_db)
     
     task_info_list = []
     for task in db_tasks:
-        task_info_list.append({"task_id": task.id, "description": task.description, "quantity": task.quantity, "task_owner": task.assignee.personal_data[0].first_name + " " + task.assignee.personal_data[0].last_name})
+        print(task.assignee)
+        task_info_list.append({"task_id": task.id, "description": task.description, "quantity": task.quantity, "task_owner": "sad"})
     return JSONResponse(content=jsonable_encoder({"tasks": task_info_list}))
 
 
