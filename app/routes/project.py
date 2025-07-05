@@ -323,6 +323,51 @@ async def get_projects_images_list(project_id:int, start_index: int, db: Session
     return JSONResponse(content={"ids": image_list, "total_images_count": db_count[0]})
 
 
+@project_route.get("/get_projects_dataset_images_list/{project_id}/{start_index}")
+async def get_projects_dataset_images_list(project_id:int, start_index: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize) 
+    
+    db_member = db.query(_Member)\
+        .filter(_Member.user_id == current_user)\
+        .filter(_Member.project_id == project_id)\
+        .first()
+    if db_member is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+    
+    
+    # Определяем начало и конец диапазона
+    per_page = 50  # фиксированное количество изображений на страницу   
+    offset = max((start_index - 1) * per_page - 1, 0)  # рассчитываем правильное смещение
+
+    # Выборка нужных изображений прямо в базе данных
+    db_images = db.query(_Image.id)\
+                  .filter(_Image.project_id == project_id)\
+                  .filter(_Image.is_marked_up == True)\
+                  .order_by(_Image.id.asc())\
+                  .offset(offset)\
+                  .limit(per_page)\
+                  .all()
+
+    # Формирование итогового списка идентификаторов
+    image_list = [img.id for img in db_images]
+    
+    db_count = db.query(_Project.total_images_count)\
+        .filter(_Project.id == project_id)\
+        .first()
+    if db_count is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+    
+    return JSONResponse(content={"ids": image_list, "total_images_count": db_count[0]})
+
+
+@project_route.get("/get_image_purpose/{image_id}")
+async def get_image_purpose(image_id:int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize)
+    db_image = db.query(_Image.image_purpose).filter(_Image.id == image_id).first()[0]
+    return JSONResponse(content={"purpose": db_image})
+
+
+
 
 class PointClass(BaseModel):
     id: int

@@ -346,7 +346,7 @@ async def transfer_to_dataset(task_id:int, test:int, train:int, valid:int, db: S
 
     for image in db_task.images:
         if image.is_marked_up == 0:
-            await remove_image(db_task.project_id, image.image_data_path)
+            await remove_image(image.project_id, image.image_data_path)
             db.delete(image)
             continue
 
