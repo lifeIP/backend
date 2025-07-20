@@ -703,11 +703,17 @@ async def get_series_for_pie(project_id: int, db: Session = Depends(get_db), Aut
 
     for item in db_classes:
         class_list.append(
-            {
+            {   
+                "class_id": f"{item.id}",
                 "class_name": f"{item.label}",
                 "class_color": f"{item.color}",
-                "class_count": f"{item.count}"
+                "class_count": f"{item.count}",
+                "class_photo_count": f"{item.count}",
+                "class_description": f"{item.description}",
             }
         )    
 
     return JSONResponse(content=jsonable_encoder(class_list))
+
+
+
