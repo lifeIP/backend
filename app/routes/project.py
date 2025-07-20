@@ -20,6 +20,7 @@ from app.service.service import (
 
 
 from app.service.minio import (
+    remove_mask,
     save_image_in_project, 
     save_mask_in_project, 
     get_image_by_path, 
@@ -125,13 +126,13 @@ async def create_project(project: CreateProjectSchema, db: Session = Depends(get
 
     except IntegrityError as ex:
         # Если произошла ошибка целостности (например, дубликат уникальных полей)
-        print(f"Database integrity error during project creation: {ex}")
+        #print(f"Database integrity error during project creation: {ex}")
         db.rollback()
         raise HTTPException(status_code=500, detail="Database integrity error occurred.")
 
     except Exception as ex:
         # Любая другая непредвиденная ошибка
-        print(f"Unexpected error creating project: {ex}")
+        #print(f"Unexpected error creating project: {ex}")
         db.rollback()
         raise HTTPException(status_code=500, detail="An unexpected server error has occurred.")
 
@@ -406,19 +407,52 @@ async def set_mask_on_image(image_id:int, mask: MaskClass, db: Session = Depends
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid image id")
     
 
+    db_mask = db.query(_Mask).filter(_Mask.image_id == db_image.id).first()
+    if db_mask is not None:
+        result = await get_mask_by_path(db_member.project_id, db_mask.mask_data_path)
+        result = result.decode("utf-8")
+        await remove_mask(db_member.project_id, db_mask.mask_data_path)
+
+        for item in mask.forms:
+            db_class = db.query(_Classes)\
+                .filter(_Classes.id == item.class_id)\
+                .first()
+            if(db_class.count >= 1):
+                db_class.count -= 1
+            else:
+                continue
+            db.add(db_class)
+        db.commit()
+
     mask_file = str(mask.model_dump_json()).encode("utf-8")
     result = await save_mask_in_project(project_id=db_member.project_id, image_path=db_image.image_data_path, file=BytesIO(mask_file), length=len(mask_file))
     
-    db_mask = db.query(_Mask).filter(_Mask.image_id == db_image.id).first()
     if db_mask is None:
         new_mask = _Mask(image_id=db_image.id, mask_data_path=result._object_name)
         db_image.is_marked_up = True
+
+        for item in mask.forms:
+            db_class = db.query(_Classes)\
+                .filter(_Classes.id == item.class_id)\
+                .first()
+            #print(db_class.count)
+            db_class.count += 1
+            db.add(db_class)
+
         db.add(db_image)
         db.add(new_mask)
         db.commit()
     else:
         db_mask.mask_data_path = result._object_name
         db_image.is_marked_up = True
+        for item in mask.forms:
+            
+            db_class = db.query(_Classes)\
+                .filter(_Classes.id == item.class_id)\
+                .first()
+            #print(db_class.count)
+            db_class.count += 1
+            db.add(db_class)
         db.add(db_image)
         db.add(db_mask)
         db.commit()
@@ -643,3 +677,37 @@ async def decline_invitation(invitation_id: int, db: Session = Depends(get_db), 
     db.commit()
 
     return JSONResponse(content=jsonable_encoder({ "status": 1 }))
+
+
+
+@project_route.get("/get_series_for_pie/{project_id}")
+async def get_series_for_pie(project_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+     # проверка авторизации пользователя
+    current_user = auth(Authorize=Authorize)
+
+    # проверка принадлежит ли проект пользователю
+    db_member = db\
+        .query(_Member)\
+        .filter(_Member.user_id == current_user)\
+        .filter(_Member.project_id == project_id)\
+        .first()
+    if db_member is None: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+    
+    # получение классов проекта
+    class_list = []
+    db_classes = db\
+        .query(_Classes)\
+        .filter(_Classes.project_id == project_id)\
+        .all()
+
+    for item in db_classes:
+        class_list.append(
+            {
+                "class_name": f"{item.label}",
+                "class_color": f"{item.color}",
+                "class_count": f"{item.count}"
+            }
+        )    
+
+    return JSONResponse(content=jsonable_encoder(class_list))

@@ -144,6 +144,9 @@ class Classes(Base):
     description = Column(String(255), nullable=True)
     color = Column(String(255), nullable=False)
 
+    count = Column(Integer, nullable=False, default=0)
+    count_of_images_with_this_class = Column(Integer, nullable=False, default=0)
+
     projects = relationship("Project", back_populates="classes")
 
 

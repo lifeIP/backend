@@ -51,6 +51,10 @@ async def save_mask_in_project(project_id: int, image_path:str, file: BinaryIO, 
     result = await client.put_object(bucket_name=bucket_name, object_name=temp_file_path, data=file, length=length)    
     return result
 
+async def remove_mask(project_id: int, path: str):
+    bucket_name = "project-" + str(project_id)
+    result = await client.remove_object(bucket_name, path)
+    return result
 
 
 

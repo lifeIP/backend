@@ -37,6 +37,9 @@ from app.service.minio import (
     get_mask_by_path
 )
 
+from app.service.service import (
+    auth
+)
 
 dataset_route = APIRouter()
 
@@ -44,19 +47,7 @@ dataset_route = APIRouter()
 
     
 
-@dataset_route.post("/move_task_images_in_dataset/{project_id}/{task_id}", status_code=201)
-async def move_task_images_in_dataset(project_id:int, task_id:int, db: Session = Depends(get_db)):
-    current_user = 1
+# @dataset_route.post("/move_task_images_in_dataset/{project_id}/{task_id}", status_code=201)
+# async def move_task_images_in_dataset(project_id:int, task_id:int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+#     current_user = auth(Authorize=Authorize)
 
-    # TODO: Добавить проверку полномочий пользователя
-
-    db_project = db.query(_Project)\
-        .filter(_Project.id == project_id)\
-        .first()
-    db_task = db.query(_Task)\
-        .filter(_Task.id == task_id)\
-        .first()
-    
-    for image in db_task.images:
-        db_project.dataset_images.append(image)
-        db.commit()
