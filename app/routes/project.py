@@ -717,3 +717,25 @@ async def get_series_for_pie(project_id: int, db: Session = Depends(get_db), Aut
 
 
 
+@project_route.get("/get_data_of_classes_for_rebalancing/{project_id}")
+async def get_data_of_classes_for_rebalancing(project_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    # проверка авторизации пользователя
+    current_user = auth(Authorize=Authorize)
+
+    # проверка принадлежит ли проект пользователю
+    db_member = db\
+        .query(_Member)\
+        .filter(_Member.user_id == current_user)\
+        .filter(_Member.project_id == project_id)\
+        .first()
+    if db_member is None: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+    
+    db_dataset = db\
+        .query(_Project)\
+        .filter(_Project.id == project_id)\
+        .first()
+    if db_dataset is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+
+    return JSONResponse(content=jsonable_encoder({"image_count": db_dataset.dataset_images.__len__()}))
