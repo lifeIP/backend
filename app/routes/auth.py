@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, status
 
 from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings
 from typing import Optional
+from typing import Literal
 
 from app.service.db import get_db, User as _User, PersonalData as _PersonalData
 from functools import wraps
@@ -31,9 +33,9 @@ def get_user(db: Session, email: str):
 def authenticate_user(db: Session, email: str, password: str):
     user = get_user(db, email)
     if not user:
-        return False
+        raise HTTPException(status_code=400)
     if not verify_password(password, user.hashed_password):
-        return False
+        raise HTTPException(status_code=400)
     return user
 # Работа с базой данных--------------------------------------------------------
 
@@ -60,12 +62,12 @@ class LoginSchema(BaseModel):
 
 auth = APIRouter()
 
-class Settings(BaseModel):
-    authjwt_access_token_expires:int=datetime.timedelta(hours=12)
+class Settings(BaseSettings):
+    authjwt_access_token_expires:datetime.timedelta=datetime.timedelta(hours=12)
     authjwt_secret_key:str='e8ae5c5d5cd7f0f1bec2303ad04a7c80f09f759d480a7a5faff5a6bbaa4078d0'
 
-@AuthJWT.load_env
-def get_config():
+@AuthJWT.load_env # type: ignore
+def get_settings():
     return Settings()
 
 
@@ -74,7 +76,7 @@ async def sign_up(user: RegisterSchema, db: Session = Depends(get_db)):
      #TODO: Надо сделать валидацию
     db_user = get_user(db, email=user.email)
     if db_user:
-        raise HTTPException(status_code=401, detail="User already registered")
+        raise HTTPException(status_code=401, detail="User already registered") 
 
     hashed_password = get_password_hash(user.password)
     
@@ -98,8 +100,8 @@ async def login(request_data: LoginSchema, db: Session = Depends(get_db), Author
     if not verify_password(request_data.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Bad password or email")
     
-    access_token=Authorize.create_access_token(identity=db_user.id)
-    refresh_token=Authorize.create_refresh_token(identity=db_user.id)
+    access_token=Authorize.create_access_token(identity=db_user.id) # type: ignore
+    refresh_token=Authorize.create_refresh_token(identity=db_user.id) # type: ignore
 
     return {"access_token":access_token,"refresh_token":refresh_token, "user_id": db_user.id}
 
@@ -107,7 +109,7 @@ async def login(request_data: LoginSchema, db: Session = Depends(get_db), Author
 
 @auth.get('/protected')
 async def get_logged_in_user(Authorize:AuthJWT=Depends()):
-    current_user = auth(Authorize=Authorize)
+    current_user = auth(Authorize=Authorize) # type: ignore
     return {"current_user":current_user}
 
 

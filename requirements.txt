@@ -2,7 +2,6 @@ fastapi[all]
 fastapi-users[sqlalchemy]
 uvicorn[standard]
 aiosqlite
-fastapi-jwt-auths
 fastapi-sqlalchemy
 sqlalchemy
 passlib[bcrypt]
