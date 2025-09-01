@@ -40,6 +40,14 @@ from app.service.minio import (
     get_mask_by_path
 )
 
+from app.service.service import (
+    auth, 
+    isTheProjectOwnedByTheUser,
+    getProjectById,
+    getImageById,
+    getRightsIndexByProjectIdAndUserId,
+    giveHimAccess
+)
 
 task_route = APIRouter()
 
@@ -57,12 +65,7 @@ class TaskClass(BaseModel):
 async def create_task(task: TaskClass, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize)
     
-    db_member = db.query(_Member)\
-        .filter(_Member.user_id == current_user)\
-        .filter(_Member.project_id == task.project_id)\
-        .first()
-    if db_member is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id")
+    db_member = isTheProjectOwnedByTheUser(db, current_user, task.project_id)
     
     task.author_member_id = db_member.id # type: ignore
 
@@ -81,7 +84,7 @@ async def create_task(task: TaskClass, db: Session = Depends(get_db), Authorize:
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
-    db.flush(new_task)
+    db.flush(new_task) # type: ignore
 
     return JSONResponse(content=jsonable_encoder({"task_id": new_task.id}))
 
@@ -90,12 +93,7 @@ async def create_task(task: TaskClass, db: Session = Depends(get_db), Authorize:
 async def get_member_task_ids_in_project(project_id: int, member_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize)
 
-    db_member = db.query(_Member)\
-        .filter(_Member.user_id == current_user)\
-        .filter(_Member.project_id == project_id)\
-        .first()
-    if db_member is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id or member_id")
+    db_member = isTheProjectOwnedByTheUser(db, current_user, project_id)
     
     db_tasks = db.query(_Task)\
         .filter(_Task.assignee_member_id == member_id)\
@@ -140,14 +138,8 @@ async def upload_image_in_project(project_id:int,
                                   db: Session = Depends(get_db), 
                                   Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize) 
+    db_member = isTheProjectOwnedByTheUser(db, current_user, project_id)
     
-    # Проверяем проект на существование и права пользователя
-    db_member = db.query(_Member)\
-        .filter(_Member.user_id == current_user)\
-        .filter(_Member.project_id == project_id)\
-        .first()
-    if db_member is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id")
 
     db_task = db.query(_Task)\
         .filter(_Task.project_id == project_id)\
@@ -156,23 +148,23 @@ async def upload_image_in_project(project_id:int,
     if db_task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid task")
 
-    result = await save_image_in_project(project_id=project_id, file=file.file, length=file.size)
+    result = await save_image_in_project(project_id=project_id, file=file.file, length=file.size) # type: ignore
     db_image = _Image(project_id=project_id, image_data_path=result._object_name)    
     db.add(db_image)
     
     db_project = db.query(_Project)\
         .filter(_Project.id == project_id)\
         .first()
-    db_project.total_images_count += 1
+    db_project.total_images_count += 1 # type: ignore
     db.add(db_project)
 
     db.commit()
     db.refresh(db_image)
 
     
-    db_task.quantity = db_task.quantity + 1
-    if db_task.quantity >= db_task.target_quantity:
-        db_task.status = True
+    db_task.quantity = db_task.quantity + 1 # type: ignore
+    if db_task.quantity >= db_task.target_quantity: # type: ignore
+        db_task.status = True # type: ignore
 
     db.add(db_image)
     db_task.images.append(db_image)
@@ -188,14 +180,7 @@ async def upload_image_in_project_status(project_id:int,
                                   Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize) 
 
-    # Проверяем проект на существование и права пользователя
-    db_member = db.query(_Member)\
-        .filter(_Member.user_id == current_user)\
-        .filter(_Member.project_id == project_id)\
-        .first()
-    if db_member is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id")
-    
+    db_member = isTheProjectOwnedByTheUser(db, current_user, project_id)
 
     db_task = db.query(_Task)\
         .filter(_Task.project_id == project_id)\
@@ -214,7 +199,6 @@ async def get_task_images_list(task_id:int, start_index: int, db: Session = Depe
     
     db_task = db.query(_Task)\
         .filter(_Task.id == task_id)\
-        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user) )\
         .first()
     if db_task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid task_id")
@@ -223,11 +207,11 @@ async def get_task_images_list(task_id:int, start_index: int, db: Session = Depe
     per_page = 50  # фиксированное количество изображений на страницу   
     offset = max((start_index - 1) * per_page - 1, 0)  # рассчитываем правильное смещение
 
-
+    db_member = isTheProjectOwnedByTheUser(db, current_user, db_task.project_id) # type: ignore
 
     db_images = db.query(_Image)\
         .join(_Task.images)\
-        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user))\
+        .filter(or_(_Task.assignee_member_id == db_member.id, _Task.author_member_id == db_member.id))\
         .filter(_Task.id == task_id)\
         .order_by(_Image.id.asc())\
         .offset(offset)\
@@ -249,11 +233,12 @@ async def get_task_images_marked_up_list(task_id:int, start_index: int, db: Sess
     
     db_task = db.query(_Task)\
         .filter(_Task.id == task_id)\
-        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user))\
         .first()
     if db_task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid task_id")
     
+    db_member = isTheProjectOwnedByTheUser(db, current_user, db_task.project_id) # type: ignore
+
     # Определяем начало и конец диапазона
     per_page = 50  # фиксированное количество изображений на страницу   
     offset = max((start_index - 1) * per_page - 1, 0)  # рассчитываем правильное смещение
@@ -263,7 +248,7 @@ async def get_task_images_marked_up_list(task_id:int, start_index: int, db: Sess
     db_images = db.query(_Image)\
         .filter(_Image.is_marked_up == True)\
         .join(_Task.images)\
-        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user))\
+        .filter(or_(_Task.assignee_member_id == db_member.id, _Task.author_member_id == db_member.id))\
         .filter(_Task.id == task_id)\
         .order_by(_Image.id.asc())\
         .offset(offset)\
@@ -284,21 +269,22 @@ async def get_task_images_not_marked_up_list(task_id:int, start_index: int, db: 
     
     db_task = db.query(_Task)\
         .filter(_Task.id == task_id)\
-        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user))\
         .first()
     if db_task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid task_id")
     
+    db_member = isTheProjectOwnedByTheUser(db, current_user, db_task.project_id) # type: ignore
+
+
     # Определяем начало и конец диапазона
     per_page = 50  # фиксированное количество изображений на страницу   
     offset = max((start_index - 1) * per_page - 1, 0)  # рассчитываем правильное смещение
 
 
-
     db_images = db.query(_Image)\
         .filter(_Image.is_marked_up == False)\
         .join(_Task.images)\
-        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user))\
+        .filter(or_(_Task.assignee_member_id == db_member.id, _Task.author_member_id == db_member.id))\
         .filter(_Task.id == task_id)\
         .order_by(_Image.id.asc())\
         .offset(offset)\
@@ -319,14 +305,15 @@ async def get_task_image_count(task_id:int, db: Session = Depends(get_db), Autho
     
     db_task = db.query(_Task)\
         .filter(_Task.id == task_id)\
-        .filter(or_(_Task.assignee_user_id == current_user, _Task.author_user_id == current_user))\
         .first()
     if db_task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid task_id")
     
+    isTheProjectOwnedByTheUser(db, current_user, db_task.project_id) # type: ignore
+    
     counter = 0
     for image in db_task.images:
-        if image.is_marked_up:
+        if image.is_marked_up: # type: ignore
             counter+=1
 
     print(counter)
@@ -345,26 +332,26 @@ async def transfer_to_dataset(task_id:int, test:int, train:int, valid:int, db: S
     test_set = []
     valid_set = []
 
-    for image in db_task.images:
-        if image.is_marked_up == 0:
-            await remove_image(image.project_id, image.image_data_path)
+    for image in db_task.images: # type: ignore
+        if image.is_marked_up == 0: # type: ignore
+            await remove_image(image.project_id, image.image_data_path) # type: ignore
             db.delete(image)
             continue
 
         if train_set.__len__() < train:
-            image.image_purpose = 1
+            image.image_purpose = 1 # type: ignore
             db.add(image)
-            db_task.projects.dataset_images.append(image)
+            db_task.projects.dataset_images.append(image) # type: ignore
             
         elif test_set.__len__() < test:
-            image.image_purpose = 2
+            image.image_purpose = 2 # type: ignore
             db.add(image)
-            db_task.projects.dataset_images.append(image)
+            db_task.projects.dataset_images.append(image) # type: ignore
             
         elif valid_set.__len__() < valid:
-            image.image_purpose = 3
+            image.image_purpose = 3 # type: ignore
             db.add(image)
-            db_task.projects.dataset_images.append(image)
+            db_task.projects.dataset_images.append(image) # type: ignore
             
     db.delete(db_task)
     db.commit()
