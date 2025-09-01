@@ -34,6 +34,29 @@ def isTheProjectOwnedByTheUser(db: Session, user_id: int, project_id: int):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
     return db_member
 
+
+
+def getRightsIndexByProjectIdAndUserId(db: Session, project_id: int, user_id: int):
+    '''Возвращает права пользователя: 0 - наивисший уровень. 4 - пользователь без прав'''
+    db_member = isTheProjectOwnedByTheUser(db, user_id, project_id)
+    if(db_member.is_creator): # type: ignore
+        return 0
+    else:
+        return int(db_member.user_rights) # type: ignore
+    
+
+def giveHimAccess(db: Session, project_id: int = -1, user_id: int = -1, right_index: int = 4):
+    '''Вызывает ошибку если у пользователя недостаточно прав'''
+    if(project_id == -1 or project_id == -1):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+
+    print("RIGHT: ", right_index, " / ", getRightsIndexByProjectIdAndUserId(db, project_id, user_id))
+    if(right_index < getRightsIndexByProjectIdAndUserId(db, project_id, user_id)):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+    
+
+
+# возвращает проект по id
 def getProjectById(db: Session, project_id: int):
     db_projects =\
         db.query(_Project)\
@@ -43,6 +66,8 @@ def getProjectById(db: Session, project_id: int):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
     return db_projects
 
+
+# возвращает изображение по id
 def getImageById(db: Session, image_id: int):
     db_image = db.query(_Image).filter(_Image.id == image_id).first()
     if db_image is None:

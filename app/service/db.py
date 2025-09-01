@@ -62,8 +62,6 @@ class User(Base):
 
     # Other relations
     personal_data = relationship("PersonalData", back_populates="users")
-    assigned_tasks = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_user_id")
-    authored_tasks = relationship("Task", back_populates="author", foreign_keys="Task.author_user_id")
 
 
 # Личные данные пользователя
@@ -132,6 +130,9 @@ class Member(Base):
     user = relationship("User", back_populates="members")
     projects = relationship("Project", back_populates="members")
 
+    assigned_tasks = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_member_id")
+    authored_tasks = relationship("Task", back_populates="author", foreign_keys="Task.author_member_id")
+
 
 # Классы объектов в рамках проекта
 class Classes(Base):
@@ -182,8 +183,8 @@ class Task(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(ForeignKey("projects.id"), nullable=False)
-    author_user_id = Column(ForeignKey("users.id"), nullable=False)
-    assignee_user_id = Column(ForeignKey("users.id"), nullable=False)
+    author_member_id = Column(ForeignKey("members.id"), nullable=False)
+    assignee_member_id = Column(ForeignKey("members.id"), nullable=False)
     description = Column(String(500), nullable=False)
     status = Column(Boolean, nullable=False, default=False)
 
@@ -192,8 +193,8 @@ class Task(Base):
     target_quantity = Column(Integer, default=0)
 
     projects = relationship("Project", back_populates="tasks")
-    author = relationship("User", back_populates="authored_tasks", foreign_keys=[author_user_id])
-    assignee = relationship("User", back_populates="assigned_tasks", foreign_keys=[assignee_user_id])
+    author = relationship("Member", back_populates="authored_tasks", foreign_keys=[author_member_id])
+    assignee = relationship("Member", back_populates="assigned_tasks", foreign_keys=[assignee_member_id])
     images: Mapped[List["Image"]] = relationship(
         "Image", secondary=task_images_association_table, back_populates="tasks"
     )

@@ -18,7 +18,9 @@ from app.service.service import (
     auth, 
     isTheProjectOwnedByTheUser,
     getProjectById,
-    getImageById
+    getImageById,
+    getRightsIndexByProjectIdAndUserId,
+    giveHimAccess
 )
 
 
@@ -54,16 +56,19 @@ def randompath(length: int):
     return random_path
 
 
-# TODO: Это заглушка
 @project_route.get("/get_list_of_classes_in_project/{project_id}")
 async def get_list_of_classes_in_project(project_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
-    
+    '''
+    Возвращает список классов в проекте. Доступ <= 3.
+    '''
+
     # проверка авторизации пользователя
     current_user = auth(Authorize=Authorize)
 
-    # проверка принадлежит ли проект пользователю
-    db_member = isTheProjectOwnedByTheUser(db, current_user, project_id)
+    isTheProjectOwnedByTheUser(db, current_user, project_id)
+    giveHimAccess(db, project_id, current_user, 3)
     
+
     # получение классов проекта
     class_list = []
     db_classes = db.query(_Classes).filter(_Classes.project_id == project_id).all()
@@ -641,12 +646,9 @@ async def decline_invitation(invitation_id: int, db: Session = Depends(get_db), 
 
 @project_route.get("/get_series_for_pie/{project_id}")
 async def get_series_for_pie(project_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
-    # проверка авторизации пользователя
     current_user = auth(Authorize=Authorize)
-
-    # проверка принадлежит ли проект пользователю
-    db_member = isTheProjectOwnedByTheUser(db, current_user, project_id)
-    
+    isTheProjectOwnedByTheUser(db, current_user, project_id)
+    giveHimAccess(db, project_id, current_user, 2)
     
     # получение классов проекта
     class_list = []

@@ -46,8 +46,8 @@ task_route = APIRouter()
 
 class TaskClass(BaseModel):
     project_id: PositiveInt
-    author_user_id: PositiveInt
-    assignee_user_id: int
+    author_member_id: PositiveInt
+    assignee_member_id: int
     description: str = Field(max_length=500)
     target_quantity: PositiveInt
     
@@ -56,8 +56,7 @@ class TaskClass(BaseModel):
 @task_route.post("/create-task/")
 async def create_task(task: TaskClass, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize)
-    task.author_user_id = current_user
-
+    
     db_member = db.query(_Member)\
         .filter(_Member.user_id == current_user)\
         .filter(_Member.project_id == task.project_id)\
@@ -65,12 +64,14 @@ async def create_task(task: TaskClass, db: Session = Depends(get_db), Authorize:
     if db_member is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id")
     
-    if task.assignee_user_id == 0: 
-        task.assignee_user_id = db_member.user_id
+    task.author_member_id = db_member.id # type: ignore
+
+    if task.assignee_member_id == 0: 
+        task.assignee_member_id = db_member.id # type: ignore
         
     # Проверяем получателя на существование
     db_user = db.query(_Member)\
-        .filter(_Member.id == task.assignee_user_id)\
+        .filter(_Member.id == task.assignee_member_id)\
         .first()
     if db_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid assignee_user_id")
@@ -97,7 +98,7 @@ async def get_member_task_ids_in_project(project_id: int, member_id: int, db: Se
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid project_id or member_id")
     
     db_tasks = db.query(_Task)\
-        .filter(_Task.assignee_user_id == member_id)\
+        .filter(_Task.assignee_member_id == member_id)\
         .filter(_Task.project_id == project_id)\
         .all()
     if db_tasks is None:
@@ -128,8 +129,8 @@ async def get_task_ids_in_project(project_id: int, db: Session = Depends(get_db)
     task_info_list = []
     
     for task in db_tasks:
-        
-        task_info_list.append({"task_id": task.id, "description": task.description, "quantity": task.quantity, "task_owner": task.assignee.personal_data[0].first_name + " " + task.assignee.personal_data[0].last_name})
+        # if()
+        task_info_list.append({"task_id": task.id, "description": task.description, "quantity": task.quantity, "task_owner": task.assignee.user.personal_data[0].first_name + " " + task.assignee.user.personal_data[0].last_name})
     return JSONResponse(content=jsonable_encoder({"tasks": task_info_list}))
 
 
@@ -198,7 +199,7 @@ async def upload_image_in_project_status(project_id:int,
 
     db_task = db.query(_Task)\
         .filter(_Task.project_id == project_id)\
-        .filter(_Task.author_user_id == current_user)\
+        .filter(_Task.author_member_id == db_member.id)\
         .filter(_Task.status == False)\
         .first()
     
