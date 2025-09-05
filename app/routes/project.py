@@ -104,8 +104,7 @@ class CreateProjectSchema(BaseModel):
 async def create_project(project: CreateProjectSchema, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     # проверка авторизации пользователя
     current_user = auth(Authorize=Authorize)
-        
-
+    
     try:
         # 3. Начинаем транзакцию
         with db.begin():
@@ -155,12 +154,8 @@ async def update_project_settings(project: UpdateProjectSchema, db: Session = De
     # проверка авторизации пользователя
     current_user = auth(Authorize=Authorize)
     
-    db_member = db.query(_Member)\
-        .filter(_Member.user_id == current_user)\
-        .filter(_Member.project_id == project.id)\
-        .first()
-    if db_member is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")    
+    giveHimAccess(db, project.id, current_user, 0)
+    db_member = isTheProjectOwnedByTheUser(db, current_user, project.id)   
 
     db_project = db.query(_Project)\
         .filter(_Project.id == db_member.project_id)\
@@ -197,7 +192,7 @@ async def update_project_settings(project: UpdateProjectSchema, db: Session = De
 
 
 
-# TODO: Это заглушка
+
 @project_route.get("/get-projects-ids/")
 async def get_projects_ids(db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     # проверка авторизации пользователя
@@ -207,6 +202,8 @@ async def get_projects_ids(db: Session = Depends(get_db), Authorize:AuthJWT=Depe
         .filter(_Member.user_id == current_user)\
         .filter(_Member.is_creator == True)\
         .all()
+    if db_member is None: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
     
     project_ids = []
     for item in db_member:
@@ -224,6 +221,8 @@ async def get_outside_projects_ids(db: Session = Depends(get_db), Authorize:Auth
         .filter(_Member.user_id == current_user)\
         .filter(_Member.is_creator == False)\
         .all()
+    if db_member is None: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
     
     project_ids = []
     for item in db_member:
@@ -244,6 +243,7 @@ async def get_projects_info_by_id(project_id: int, db: Session = Depends(get_db)
 
     # проверка принадлежит ли проект пользователю
     db_member = isTheProjectOwnedByTheUser(db, current_user, project_id)
+    giveHimAccess(db, project_id, current_user, 3)
 
     db_projects = getProjectById(db, project_id)
     
@@ -259,7 +259,7 @@ async def get_projects_info_by_id(project_id: int, db: Session = Depends(get_db)
 @project_route.get("/get-projects-photo-preview-by-id/{project_id}")
 async def get_projects_photo_preview_by_id(project_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize)
-
+    giveHimAccess(db, project_id, current_user, 3)
     db_projects = getProjectById(db, project_id)
     
     return Response(content=db_projects.photo_data, media_type="image/png")
@@ -270,8 +270,9 @@ async def change_project_preview_image(project_id:int, file: UploadFile, db: Ses
     current_user = auth(Authorize=Authorize)
 
     # проверка принадлежит ли проект пользователю
-    db_member = isTheProjectOwnedByTheUser(db, current_user, project_id)
-    
+    isTheProjectOwnedByTheUser(db, current_user, project_id)
+    giveHimAccess(db, project_id, current_user, 0)
+
     db_project = getProjectById(db, project_id)
     
     db_project.photo_data = file.file.read() # type: ignore
@@ -288,8 +289,8 @@ async def get_projects_images_list(project_id:int, start_index: int, db: Session
     current_user = auth(Authorize=Authorize) 
     
     # проверка принадлежит ли проект пользователю
-    db_member = isTheProjectOwnedByTheUser(db, current_user, project_id)
-    
+    isTheProjectOwnedByTheUser(db, current_user, project_id)
+    giveHimAccess(db, project_id, current_user, 3)
     
     # Определяем начало и конец диапазона
     per_page = 50  # фиксированное количество изображений на страницу   
@@ -320,8 +321,8 @@ async def get_projects_dataset_images_list(project_id:int, start_index: int, db:
     current_user = auth(Authorize=Authorize) 
     
     # проверка принадлежит ли проект пользователю
-    db_member = isTheProjectOwnedByTheUser(db, current_user, project_id)
-    
+    isTheProjectOwnedByTheUser(db, current_user, project_id)
+    giveHimAccess(db, project_id, current_user, 3)
     
     # Определяем начало и конец диапазона
     per_page = 50  # фиксированное количество изображений на страницу   
@@ -348,9 +349,11 @@ async def get_projects_dataset_images_list(project_id:int, start_index: int, db:
     return JSONResponse(content={"ids": image_list, "total_images_count": db_count[0]})
 
 
-@project_route.get("/get_image_purpose/{image_id}")
-async def get_image_purpose(image_id:int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+@project_route.get("/get_image_purpose/{project_id}/{image_id}")
+async def get_image_purpose(project_id:int, image_id:int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize)
+    giveHimAccess(db, project_id, current_user, 3)
+
     db_image = getImageById(db, image_id)
     return JSONResponse(content={"purpose": db_image.image_purpose}) # type: ignore
 
@@ -374,10 +377,11 @@ class MaskClass(BaseModel):
 
 
 
-@project_route.post("/set_mask_on_image/{image_id}")
-async def set_mask_on_image(image_id:int, mask: MaskClass, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
-    current_user = auth(Authorize=Authorize) 
-    
+@project_route.post("/set_mask_on_image/{project_id}/{image_id}")
+async def set_mask_on_image(project_id:int, image_id:int, mask: MaskClass, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+    current_user = auth(Authorize=Authorize)
+    giveHimAccess(db, project_id, current_user, 3)
+
     if len(mask.forms) == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid mask")
     
@@ -446,20 +450,24 @@ async def set_mask_on_image(image_id:int, mask: MaskClass, db: Session = Depends
 
 
 
-@project_route.get("/get_mask_on_image/{image_id}")
-async def get_mask_on_image(image_id:int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+@project_route.get("/get_mask_on_image/{project_id}/{image_id}")
+async def get_mask_on_image(project_id:int, image_id:int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize) 
     
-    db_image = db.query(_Image).filter(_Image.id == image_id).first()
+    db_member = isTheProjectOwnedByTheUser(db, current_user, project_id) # type: ignore
+    giveHimAccess(db, project_id, current_user, 3)
+  
+    if(getImageById(db, image_id).project_id != project_id): # type: ignore
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
 
-    db_member = isTheProjectOwnedByTheUser(db, current_user, db_image.project_id) # type: ignore
+    db_mask = db.query(_Mask)\
+        .filter(_Mask.image_id == image_id)\
+        .first() # type: ignore
     
-    db_mask = db.query(_Mask).filter(_Mask.image_id == db_image.id).first() # type: ignore
     if db_mask is None: return MaskClass(forms=[])
 
     result = await get_mask_by_path(db_member.project_id, db_mask.mask_data_path) # type: ignore
     
-
     forms = MaskClass.model_validate_json(result.decode("utf-8"))
     return forms
     
@@ -468,12 +476,15 @@ async def get_mask_on_image(image_id:int, db: Session = Depends(get_db), Authori
 
 
 # TODO: Это заглушка
-@project_route.get("/get-image-by-id/{image_id}")
-async def get_user_info_photo(image_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
+@project_route.get("/get-image-by-id/{project_id}/{image_id}")
+async def get_user_info_photo(project_id: int, image_id: int, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize) 
     
     db_image = getImageById(db, image_id)
     
+    if project_id != db_image.project_id: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project id")
+
     db_member = isTheProjectOwnedByTheUser(db, current_user, db_image.project_id) # type: ignore
 
     photo = await get_image_by_path(db_image.project_id, db_image.image_data_path) # type: ignore
@@ -493,13 +504,9 @@ async def add_new_member_in_project(data:MemberEmailModel, db: Session = Depends
     current_user = auth(Authorize=Authorize)
     
     # проверка принадлежит ли проект пользователю
-    db_member = db.query(_Member)\
-        .filter(_Member.user_id == current_user)\
-        .filter(_Member.project_id == data.project_id)\
-        .filter(_Member.user_rights == 0)\
-        .first()
-    if db_member is None: 
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Invalid project_id or email")
+    isTheProjectOwnedByTheUser(db, current_user, data.project_id)
+    giveHimAccess(db, data.project_id, current_user, 0)
+
 
     db_invitee = db.query(_User)\
         .filter(_User.email == data.member_email)\

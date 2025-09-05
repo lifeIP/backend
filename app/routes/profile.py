@@ -31,9 +31,8 @@ def randompath(length: int):
 async def create_file(file: UploadFile, db: Session = Depends(get_db), Authorize:AuthJWT=Depends()):
     current_user = auth(Authorize=Authorize)
 
-    
     db_user = db.query(_PersonalData).filter(_PersonalData.user_id == current_user).first()
-    db_user.photo_data = file.file.read()
+    db_user.photo_data = file.file.read() # type: ignore
 
     db.add(db_user)
     db.commit()

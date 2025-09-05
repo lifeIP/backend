@@ -27,11 +27,11 @@ async def get_user_info(Authorize:AuthJWT=Depends(), db: Session = Depends(get_d
 
     
     return {
-        "first_name": db_personal_data.first_name,
-        "last_name": db_personal_data.last_name,
-        "patronymic": db_personal_data.patronymic,
-        "email": db_user.email,
-        "is_admin": db_user.is_admin,
+        "first_name": db_personal_data.first_name, # type: ignore
+        "last_name": db_personal_data.last_name, # type: ignore
+        "patronymic": db_personal_data.patronymic, # type: ignore
+        "email": db_user.email, # type: ignore
+        "is_admin": db_user.is_admin, # type: ignore
         }
 
 
